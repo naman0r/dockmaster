@@ -1,5 +1,12 @@
 # Port Authority
 
+Personal Slop as a service, but a very helpful dev tool
+
+<img width="400" height="" alt="image" src="https://github.com/user-attachments/assets/6f99f6d1-4071-4bdf-90b9-b952337ccc30" />
+
+
+
+
 A tiny local dashboard for seeing which development servers are listening on your Mac—and stopping them without hunting through terminal tabs.
 
 Port Authority is one Python file, uses only the standard library, and does no discovery work while the dashboard is closed. When the page is open, it scans on demand with macOS's built-in <code>lsof</code> and <code>ps</code> tools.
