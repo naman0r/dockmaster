@@ -618,22 +618,22 @@ HTML_PAGE = r"""<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#070b0a">
+  <meta name="theme-color" content="#070b14">
   <title>Port Authority</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23070b0a'/%3E%3Cpath d='M18 45V19h17c8 0 13 4 13 11s-5 11-13 11H26v4h-8Zm8-12h9c3 0 5-1 5-3s-2-3-5-3h-9v6Z' fill='%2370fbb4'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23070b14'/%3E%3Cpath d='M18 45V19h17c8 0 13 4 13 11s-5 11-13 11H26v4h-8Zm8-12h9c3 0 5-1 5-3s-2-3-5-3h-9v6Z' fill='%2368a9ff'/%3E%3C/svg%3E">
   <style>
     :root {
-      --ink: #f1f7f4;
-      --muted: #82918a;
-      --quiet: #53615b;
-      --accent: #70fbb4;
-      --accent-soft: rgba(112, 251, 180, .10);
+      --ink: #f2f6fc;
+      --muted: #8593a8;
+      --quiet: #526178;
+      --accent: #68a9ff;
+      --accent-soft: rgba(104, 169, 255, .10);
       --alarm: #ff6b6b;
       --alarm-soft: rgba(255, 107, 107, .10);
-      --surface: #0b100e;
-      --surface-raised: #0f1613;
-      --line: #1c2923;
-      --line-bright: #2f443a;
+      --surface: #0b111c;
+      --surface-raised: #101927;
+      --line: #1c2a3e;
+      --line-bright: #304965;
       --shadow: rgba(0, 0, 0, .42);
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -641,7 +641,7 @@ HTML_PAGE = r"""<!doctype html>
 
     * { box-sizing: border-box; }
 
-    html { min-height: 100%; background: #070b0a; }
+    html { min-height: 100%; background: #070b14; }
 
     body {
       min-width: 320px;
@@ -650,9 +650,9 @@ HTML_PAGE = r"""<!doctype html>
       color: var(--ink);
       font-family: var(--sans);
       background:
-        radial-gradient(circle at 82% -10%, rgba(112, 251, 180, .09), transparent 31rem),
-        radial-gradient(circle at -8% 72%, rgba(112, 251, 180, .045), transparent 26rem),
-        #070b0a;
+        radial-gradient(circle at 82% -10%, rgba(104, 169, 255, .10), transparent 31rem),
+        radial-gradient(circle at -8% 72%, rgba(104, 169, 255, .05), transparent 26rem),
+        #070b14;
     }
 
     body::before {
@@ -663,8 +663,8 @@ HTML_PAGE = r"""<!doctype html>
       pointer-events: none;
       opacity: .34;
       background-image:
-        linear-gradient(rgba(112, 251, 180, .025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(112, 251, 180, .025) 1px, transparent 1px);
+        linear-gradient(rgba(104, 169, 255, .028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(104, 169, 255, .028) 1px, transparent 1px);
       background-size: 42px 42px;
       mask-image: linear-gradient(to bottom, black, transparent 84%);
     }
@@ -677,8 +677,6 @@ HTML_PAGE = r"""<!doctype html>
       width: min(1160px, calc(100% - 40px));
       margin: 0 auto;
       padding: 48px 0 34px;
-    }
-
     .masthead {
       display: flex;
       align-items: flex-end;
@@ -698,8 +696,8 @@ HTML_PAGE = r"""<!doctype html>
       color: var(--accent);
       border: 1px solid var(--line-bright);
       border-radius: 13px;
-      background: linear-gradient(145deg, rgba(112, 251, 180, .08), transparent);
-      box-shadow: inset 0 0 24px rgba(112, 251, 180, .04), 0 16px 40px var(--shadow);
+      background: linear-gradient(145deg, rgba(104, 169, 255, .09), transparent);
+      box-shadow: inset 0 0 24px rgba(104, 169, 255, .05), 0 16px 40px var(--shadow);
       font: 700 17px/1 var(--mono);
       letter-spacing: -.08em;
     }
@@ -711,10 +709,10 @@ HTML_PAGE = r"""<!doctype html>
       width: 8px;
       height: 8px;
       content: "";
-      border: 2px solid #070b0a;
+      border: 2px solid #070b14;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 14px rgba(112, 251, 180, .7);
+      box-shadow: 0 0 14px rgba(104, 169, 255, .7);
     }
 
     .eyebrow {
@@ -746,12 +744,12 @@ HTML_PAGE = r"""<!doctype html>
       height: 7px;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 0 0 rgba(112, 251, 180, .4);
+      box-shadow: 0 0 0 0 rgba(104, 169, 255, .4);
       animation: ping 2.4s ease-out infinite;
     }
 
     @keyframes ping {
-      60%, 100% { box-shadow: 0 0 0 8px rgba(112, 251, 180, 0); }
+      60%, 100% { box-shadow: 0 0 0 8px rgba(104, 169, 255, 0); }
     }
 
     .console {
@@ -760,7 +758,7 @@ HTML_PAGE = r"""<!doctype html>
       margin-bottom: 16px;
       border: 1px solid var(--line);
       border-radius: 18px;
-      background: rgba(11, 16, 14, .86);
+      background: rgba(11, 17, 28, .86);
       box-shadow: 0 28px 80px var(--shadow);
       backdrop-filter: blur(16px);
     }
@@ -773,7 +771,7 @@ HTML_PAGE = r"""<!doctype html>
       height: 1px;
       content: "";
       background: var(--accent);
-      box-shadow: 0 0 15px rgba(112, 251, 180, .8);
+      box-shadow: 0 0 15px rgba(104, 169, 255, .8);
     }
 
     .controls {
@@ -795,7 +793,7 @@ HTML_PAGE = r"""<!doctype html>
       color: var(--accent);
       font: 500 45px/.9 var(--mono);
       letter-spacing: -.08em;
-      text-shadow: 0 0 24px rgba(112, 251, 180, .14);
+      text-shadow: 0 0 24px rgba(104, 169, 255, .16);
     }
 
     .count-label {
@@ -863,7 +861,7 @@ HTML_PAGE = r"""<!doctype html>
       height: 19px;
       border: 1px solid var(--line-bright);
       border-radius: 20px;
-      background: #080d0b;
+      background: #080e19;
       transition: border-color .18s ease, background .18s ease;
     }
 
@@ -899,7 +897,7 @@ HTML_PAGE = r"""<!doctype html>
       padding: 13px 20px;
       color: var(--quiet);
       border-top: 1px solid var(--line);
-      background: rgba(4, 8, 6, .3);
+      background: rgba(5, 9, 16, .3);
       font: 500 9px/1 var(--mono);
       letter-spacing: .12em;
       text-transform: uppercase;
@@ -943,14 +941,14 @@ HTML_PAGE = r"""<!doctype html>
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 14px;
-      background: linear-gradient(115deg, rgba(15, 22, 19, .96), rgba(10, 15, 13, .96));
+      background: linear-gradient(115deg, rgba(15, 23, 35, .96), rgba(10, 16, 26, .96));
       box-shadow: 0 12px 30px rgba(0, 0, 0, .16);
       transition: border-color .18s ease, transform .18s ease, background .18s ease;
     }
 
     .service:hover {
       border-color: var(--line-bright);
-      background: linear-gradient(115deg, rgba(17, 25, 21, .98), rgba(10, 15, 13, .98));
+      background: linear-gradient(115deg, rgba(17, 26, 40, .98), rgba(10, 16, 26, .98));
       transform: translateY(-1px);
     }
 
@@ -972,8 +970,8 @@ HTML_PAGE = r"""<!doctype html>
       padding: 24px 25px;
       border-right: 1px solid var(--line);
       background:
-        linear-gradient(135deg, rgba(112, 251, 180, .045), transparent 62%),
-        repeating-linear-gradient(90deg, transparent 0 11px, rgba(112, 251, 180, .018) 11px 12px);
+        linear-gradient(135deg, rgba(104, 169, 255, .055), transparent 62%),
+        repeating-linear-gradient(90deg, transparent 0 11px, rgba(104, 169, 255, .02) 11px 12px);
     }
 
     .port {
@@ -1020,7 +1018,7 @@ HTML_PAGE = r"""<!doctype html>
       flex: 0 0 auto;
       padding: 5px 7px 4px;
       color: var(--accent);
-      border: 1px solid rgba(112, 251, 180, .22);
+      border: 1px solid rgba(104, 169, 255, .25);
       border-radius: 5px;
       background: var(--accent-soft);
       font: 650 8px/1 var(--mono);
@@ -1110,7 +1108,7 @@ HTML_PAGE = r"""<!doctype html>
     .action:hover { color: var(--ink); border-color: var(--muted); }
     .action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-    .action.stop { color: var(--accent); border-color: rgba(112, 251, 180, .28); }
+    .action.stop { color: var(--accent); border-color: rgba(104, 169, 255, .3); }
     .action.stop:hover { background: var(--accent-soft); border-color: var(--accent); }
     .action.force { color: var(--alarm); border-color: rgba(255, 107, 107, .38); }
     .action.force:hover { background: var(--alarm-soft); border-color: var(--alarm); }
@@ -1127,7 +1125,7 @@ HTML_PAGE = r"""<!doctype html>
       text-align: center;
       border: 1px dashed var(--line-bright);
       border-radius: 14px;
-      background: rgba(11, 16, 14, .55);
+      background: rgba(11, 17, 28, .55);
     }
 
     .empty-glyph {
@@ -1151,7 +1149,7 @@ HTML_PAGE = r"""<!doctype html>
       color: var(--ink);
       border: 1px solid var(--line-bright);
       border-radius: 9px;
-      background: #111a16;
+      background: #111c2b;
       box-shadow: 0 20px 60px rgba(0, 0, 0, .48);
       font: 550 11px/1.4 var(--mono);
       opacity: 0;
