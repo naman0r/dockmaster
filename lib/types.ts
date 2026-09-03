@@ -15,9 +15,9 @@ export function snapshot<T>(
   enabled: boolean,
   value: { data: T; cachedAt: string; scanMs?: number } | null,
 ): Snapshot<T> {
-  if (!value) return { enabled: true, cachedAt: null, data: null };
+  if (!value) return { enabled, cachedAt: null, data: null };
   return {
-    enabled: true,
+    enabled,
     cachedAt: value.cachedAt,
     data: value.data,
     scanMs: value.scanMs,

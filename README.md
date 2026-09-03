@@ -23,7 +23,7 @@ what's on your machine, and it should be able to *safely* act on it.
 | **Logbook**   | "Which project had you today" — samples the frontmost app via osascript. Fully demand-driven: it records only while the page is open and visible. Window titles are never stored. |
 | **Notepad**   | Local scratch pad: timestamped dev notes (tools you found, snippets, ideas) stored in `~/.dockmaster/notes.json`. |
 
-Every module can be switched off from its own page (persisted in `~/.dockmaster/settings.json`).
+Every scanning module can be switched off from its own page (persisted in `~/.dockmaster/settings.json`).
 
 ## Resource discipline
 
@@ -58,7 +58,7 @@ npm start
 
 | Variable | Default | Meaning |
 | -------- | ------- | ------- |
-| `PORT` | `3000` | Loopback listen port |
+| `PORT` | `3000` (`4310` under the LaunchAgent) | Loopback listen port. Read from the shell environment, not from `.env`. |
 | `DOCKMASTER_DATA_DIR` | `~/.dockmaster` | Settings, profiles, logbook, backups |
 | `DOCKMASTER_DEV_ROOT` | `~/Developer` | Where the repo scanner walks |
 | `DOCKMASTER_WALK_DEPTH` | `3` | Repo scan depth |
@@ -73,7 +73,7 @@ Install a per-user LaunchAgent (run a production build first):
 
 ~~~bash
 npm run build
-npm run agent:install     # com.dockmaster.app, starts at login
+npm run agent:install     # com.dockmaster.app, starts at login on port 4310
 npm run agent:uninstall
 ~~~
 
@@ -87,7 +87,8 @@ Port Authority did:
 1. Binds to `127.0.0.1` only; middleware rejects any non-loopback `Host` header (DNS
    rebinding).
 2. API requests require a per-process token injected into the page; a custom header
-   forces a CORS preflight, and preflights are never answered.
+   forces a CORS preflight, which is answered without CORS headers so the browser
+   blocks the real request. A missing or stale token is a 401; action refusals are 403.
 3. `Origin` is validated on every API request.
 4. Destructive actions re-verify identity against a fresh scan (stale rows 409), and
    the process-tree kill refuses PID 1, Dockmaster itself, its ancestors, and any

@@ -51,20 +51,19 @@ describe("guardRemoveWorktree", () => {
 
   it("rejects a path outside the dev root", () => {
     expect(() =>
-      guardRemoveWorktree("/etc", "/Users/x/main", ["/Users/x/main"], "/Users/x/main", root),
+      guardRemoveWorktree("/etc", ["/Users/x/main"], "/Users/x/main", root),
     ).toThrow(/outside/);
   });
 
   it("rejects an unlisted path", () => {
     expect(() =>
-      guardRemoveWorktree("/Users/x/other", "/Users/x/main", ["/Users/x/main"], "/Users/x/main", root),
+      guardRemoveWorktree("/Users/x/other", ["/Users/x/main"], "/Users/x/main", root),
     ).toThrow(/not a registered worktree/);
   });
 
   it("rejects the main worktree", () => {
     expect(() =>
       guardRemoveWorktree(
-        "/Users/x/main",
         "/Users/x/main",
         ["/Users/x/main", "/Users/x/feature"],
         "/Users/x/main",
@@ -77,7 +76,6 @@ describe("guardRemoveWorktree", () => {
     expect(() =>
       guardRemoveWorktree(
         "/Users/x/feature",
-        "/Users/x/main",
         ["/Users/x/main", "/Users/x/feature"],
         "/Users/x/main",
         root,

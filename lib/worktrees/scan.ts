@@ -86,12 +86,19 @@ async function staleBranches(repoPath: string, currentBranch: string): Promise<S
     { timeoutMs: 5000 },
   );
   const cutoff = Date.now() / 1000 - STALE_DAYS * 86400;
-  const candidates = parseBranchRefs(refs).filter(
+  const aged = parseBranchRefs(refs).filter(
     (b) => b.dateUnix < cutoff && b.name !== currentBranch,
+  );
+  if (aged.length === 0) return [];
+
+  // Only offer what guardDeleteBranch would let through; a stale default
+  // branch is not actionable here.
+  const defaultBranch = await defaultBranchOf(repoPath);
+  const candidates = aged.filter(
+    (b) => b.name !== defaultBranch && b.name !== "main" && b.name !== "master",
   );
   if (candidates.length === 0) return [];
 
-  const defaultBranch = await defaultBranchOf(repoPath);
   return mapLimit(candidates, 4, async (b) => {
     const merged = await isAncestor(repoPath, b.name, defaultBranch);
     const iso = await exec(
@@ -160,7 +167,6 @@ function assertInsideDevRoot(target: string, root: string): void {
 
 export function guardRemoveWorktree(
   worktreePath: string,
-  repoPath: string,
   listed: string[],
   mainWorktree: string,
   root: string = devRoot(),
@@ -172,7 +178,6 @@ export function guardRemoveWorktree(
   if (path.resolve(worktreePath) === path.resolve(mainWorktree)) {
     throw new HttpError(403, "Refusing to remove the repo's main worktree.");
   }
-  void repoPath;
 }
 
 export async function removeWorktree(
@@ -188,7 +193,6 @@ export async function removeWorktree(
   const entries = parseWorktreeList(list);
   guardRemoveWorktree(
     worktreePath,
-    repoPath,
     entries.map((e) => path.resolve(e.path)),
     entries[0]?.path || "",
   );

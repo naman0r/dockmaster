@@ -54,7 +54,6 @@ export function parseAddress(value: string): { address: string; port: number } |
 export function parseListenerOutput(output: string): Map<number, Listener> {
   const processes = new Map<number, Listener>();
   let current: Listener | null = null;
-  let currentPid = 0;
 
   for (const raw of output.split("\n")) {
     if (!raw) continue;
@@ -66,7 +65,6 @@ export function parseListenerOutput(output: string): Map<number, Listener> {
         current = null;
         continue;
       }
-      currentPid = pid;
       current = processes.get(pid) || { command: "", user: "", ports: new Map() };
       processes.set(pid, current);
     } else if (!current) {
@@ -87,7 +85,6 @@ export function parseListenerOutput(output: string): Map<number, Listener> {
   for (const [pid, listener] of processes) {
     if (listener.ports.size === 0) processes.delete(pid);
   }
-  void currentPid;
   return processes;
 }
 
