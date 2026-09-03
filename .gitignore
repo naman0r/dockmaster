@@ -1,4 +1,9 @@
-plan.md
-__pycache__/
-*.py[cod]
+node_modules/
+.next/
+out/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
 .DS_Store
+__pycache__/

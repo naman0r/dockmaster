@@ -1,82 +1,102 @@
-# Port Authority
+# Dockmaster
 
-Personal Slop as a service, but a very helpful dev tool
+Local dev dashboard for macOS: one console for everything running on your machine.
 
-<img width="400" height="" alt="image" src="https://github.com/user-attachments/assets/6f99f6d1-4071-4bdf-90b9-b952337ccc30" />
+Dockmaster grew out of [Port Authority](legacy/port_authority.py) — the single-file port
+dashboard now lives in `legacy/` for reference. The idea scaled: a dev tool should know
+what's on your machine, and it should be able to *safely* act on it.
 
+<img width="400" alt="overview" src="https://github.com/user-attachments/assets/6f99f6d1-4071-4bdf-90b9-b952337ccc30" />
 
+## Modules
 
+| Module    | What it does |
+| --------- | ------------ |
+| **Harbor**    | Landing overview: one live card per module. |
+| **Ports**     | Every listening dev server (lsof/ps), with a guarded stop button. Full Port Authority behavior: tree-kill, SIGTERM-then-confirmed-SIGKILL, PID-reuse protection, LAN-exposure badges. |
+| **Repos**     | Status board for every git repo under your dev root: dirty files, ahead/behind, stale branches, last commit. |
+| **Worktrees** | Linked worktrees and branches older than 30 days. Remove worktrees, prune, delete branches — main worktree and default branches are off limits. |
+| **Health**    | "Is it up?" — a personal status page for localhost services and external URLs, with status code and latency. |
+| **Hosts**     | /etc/hosts viewer with profiles. Applying opens the macOS admin prompt (no sudoers edits), always backs up first, flushes the DNS cache. |
+| **Processes** | Instantaneous CPU (two ps samples, one second apart) and memory. Stop is guarded like Ports: own processes only, never PID 1 or Dockmaster's ancestors. |
+| **Secrets**   | Credential-shaped strings in *tracked* files across all repos (AWS/Slack/GitHub/Google/OpenAI keys, private key blocks, generic assignments). Previews are redacted server-side; the API never returns full secret text. Also lists untracked .env files (the good kind). |
+| **Logbook**   | "Which project had you today" — samples the frontmost app via osascript. Fully demand-driven: it records only while the page is open and visible. Window titles are never stored. |
 
-A tiny local dashboard for seeing which development servers are listening on your Mac—and stopping them without hunting through terminal tabs.
+Every module can be switched off from its own page (persisted in `~/.dockmaster/settings.json`).
 
-Port Authority is one Python file, uses only the standard library, and does no discovery work while the dashboard is closed. When the page is open, it scans on demand with macOS's built-in <code>lsof</code> and <code>ps</code> tools.
+## Resource discipline
+
+Nothing scans unless someone is looking:
+
+- All discovery is demand-driven with a short TTL cache and request coalescing.
+- Frontend polling pauses when the tab is hidden (`visibilitychange`).
+- The Logbook heartbeat only runs while its page is open and tracking is on; there is
+  no background timer anywhere in the server.
+- Bulk git scans run with bounded concurrency (4-6 processes).
+
+A running Dockmaster idles near zero; the Next.js server itself is the main resident cost.
 
 ## Run it
 
-Requirements: macOS, Python 3.9 or newer, <code>lsof</code>, and <code>ps</code>.
+Requirements: macOS, Node 20+.
 
 ~~~bash
-chmod +x port_authority.py
-./port_authority.py --open
+npm install
+cp .env.example .env   # optional: all values have defaults
+npm run dev            # http://localhost:3000
 ~~~
 
-The dashboard binds only to <code>127.0.0.1</code> and defaults to [http://localhost:9494](http://localhost:9494).
-
-Useful commands:
+Production (lower memory, no file watching):
 
 ~~~bash
-./port_authority.py --scan          # print one JSON snapshot
-./port_authority.py --port 9595     # use another local port
-./port_authority.py --verbose       # include HTTP request logs
+npm run build
+npm start
 ~~~
+
+### Configuration (.env)
+
+| Variable | Default | Meaning |
+| -------- | ------- | ------- |
+| `PORT` | `3000` | Loopback listen port |
+| `DOCKMASTER_DATA_DIR` | `~/.dockmaster` | Settings, profiles, logbook, backups |
+| `DOCKMASTER_DEV_ROOT` | `~/Developer` | Where the repo scanner walks |
+| `DOCKMASTER_WALK_DEPTH` | `3` | Repo scan depth |
+| `DOCKMASTER_LOGBOOK_INTERVAL_MS` | `10000` | Logbook sample interval |
+
+No private information is hardcoded; everything comes from the environment or your
+local data dir.
 
 ## Keep it running
 
-Install a per-user macOS LaunchAgent:
+Install a per-user LaunchAgent (run a production build first):
 
 ~~~bash
-./port_authority.py --install
+npm run build
+npm run agent:install     # com.dockmaster.app, starts at login
+npm run agent:uninstall
 ~~~
 
-The installer records the absolute paths of the current Python interpreter and this script, then starts <code>com.portauthority.app</code>. Keep the script at the same path; rerun <code>--install</code> if either path changes.
+Logs land in `~/.dockmaster/logs/`.
 
-To stop the agent and remove its plist:
+## Security model
 
-~~~bash
-./port_authority.py --uninstall
-~~~
+The dashboard can kill processes and rewrite /etc/hosts, so it defends itself the way
+Port Authority did:
 
-Uninstalling preserves <code>~/Library/Logs/PortAuthority.log</code> and <code>PortAuthority.error.log</code>.
-
-## What it shows
-
-- One entry for each listening (PID, port), with dual-stack addresses collapsed
-- Process kind, Git project, exact working directory, command, owner, and uptime
-- A prominent warning when a listener accepts non-loopback traffic
-- Background and macOS services behind an optional toggle
-- Protected Docker/OrbStack bridges that cannot be killed from the dashboard
-
-Search matches ports, projects, kinds, commands, users, paths, and bind addresses.
-
-## Stop safety
-
-A normal stop sends <code>SIGTERM</code> to the selected process and its descendants, deepest first. If the port remains occupied after three seconds, the UI offers a separately confirmed <code>SIGKILL</code>; it never escalates automatically.
-
-Before signaling, Port Authority:
-
-- refreshes discovery and matches the PID, port, and process start time to prevent stale PID reuse
-- refuses PID 1, itself, and every process in its ancestor chain
-- refuses processes owned by another user, background/system processes, and container-runtime bridges
-- validates every descendant in the process tree
-
-The HTTP API is loopback-only. API requests also require a per-process token, an exact local <code>Host</code>, and a matching <code>Origin</code>; CORS preflights are rejected.
+1. Binds to `127.0.0.1` only; middleware rejects any non-loopback `Host` header (DNS
+   rebinding).
+2. API requests require a per-process token injected into the page; a custom header
+   forces a CORS preflight, and preflights are never answered.
+3. `Origin` is validated on every API request.
+4. Destructive actions re-verify identity against a fresh scan (stale rows 409), and
+   the process-tree kill refuses PID 1, Dockmaster itself, its ancestors, and any
+   process owned by another user.
 
 ## Development
 
-Run the focused standard-library test suite:
-
 ~~~bash
-python3 -m unittest -v
+npm run typecheck
+npm test        # vitest — parsers and safety guards
 ~~~
 
-The app intentionally has no package manager, virtual environment, build step, external fonts, analytics, or runtime dependencies.
+The legacy single-file tool and its build notes are in `legacy/`.
