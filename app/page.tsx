@@ -24,6 +24,37 @@ function countOf(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
 }
 
+type Vitals = {
+  uptimeSeconds: number;
+  loadAvg: [number, number, number] | null;
+  memFreePct: number | null;
+  disk: { freeKb: number; totalKb: number; usedPct: number } | null;
+  battery: { pct: number; source: string; status: string } | null;
+};
+
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function formatGb(kb: number): string {
+  const gb = kb / 1024 / 1024;
+  return gb >= 10 ? `${gb.toFixed(0)} GB` : `${gb.toFixed(1)} GB`;
+}
+
+function VitalsChip({ label, value, alarm }: { label: string; value: string; alarm?: boolean }) {
+  return (
+    <span className="whitespace-nowrap">
+      <span className="text-quiet">{label} </span>
+      <span className={alarm ? "text-alarm" : "text-muted"}>{value}</span>
+    </span>
+  );
+}
+
 const MODULES: ModuleCard[] = [
   {
     href: "/ports",
@@ -135,17 +166,24 @@ const MODULES: ModuleCard[] = [
 
 export default function OverviewPage() {
   const [snaps, setSnaps] = useState<Record<string, SnapshotLite | null>>({});
+  const [vitals, setVitals] = useState<Vitals | null>(null);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    const results = await Promise.allSettled(
-      MODULES.map(async (m) => [m.href, await apiGet<SnapshotLite>(m.endpoint)] as const),
-    );
+    const results = await Promise.allSettled([
+      ...MODULES.map(async (m) => [m.href, await apiGet<SnapshotLite>(m.endpoint)] as const),
+      apiGet<SnapshotLite>("/api/vitals").then((v) => ["/api/vitals", v] as const),
+    ]);
     const next: Record<string, SnapshotLite | null> = {};
     let failed = false;
     for (const result of results) {
-      if (result.status === "fulfilled") next[result.value[0]] = result.value[1];
-      else failed = true;
+      if (result.status !== "fulfilled") {
+        failed = true;
+        continue;
+      }
+      const [key, value] = result.value;
+      if (key === "/api/vitals") setVitals((value.data as Vitals) ?? null);
+      else next[key] = value;
     }
     setSnaps(next);
     setError(failed ? "One or more modules are unreachable." : "");
@@ -161,6 +199,35 @@ export default function OverviewPage() {
         description="Everything Dockmaster knows right now. Modules only scan while a page is open, and each can be switched off from its own page."
       />
       <ErrorNote message={error} />
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-line bg-surface/55 px-4 py-2.5 font-mono text-[11px]">
+        {vitals ? (
+          <>
+            <VitalsChip label="up" value={formatUptime(vitals.uptimeSeconds)} />
+            {vitals.loadAvg ? (
+              <VitalsChip label="load" value={vitals.loadAvg.map((n) => n.toFixed(2)).join(" ")} />
+            ) : null}
+            {vitals.memFreePct !== null ? (
+              <VitalsChip label="mem free" value={`${vitals.memFreePct}%`} />
+            ) : null}
+            {vitals.disk ? (
+              <VitalsChip
+                label="disk"
+                value={`${formatGb(vitals.disk.freeKb)} free of ${formatGb(vitals.disk.totalKb)}`}
+                alarm={vitals.disk.usedPct >= 90}
+              />
+            ) : null}
+            {vitals.battery ? (
+              <VitalsChip
+                label="batt"
+                value={`${vitals.battery.pct}% ${vitals.battery.status}`}
+                alarm={vitals.battery.status === "discharging" && vitals.battery.pct < 20}
+              />
+            ) : null}
+          </>
+        ) : (
+          <span className="text-quiet">reading system…</span>
+        )}
+      </div>
       <div className="grid gap-3.5 grid-cols-2 max-[560px]:grid-cols-1">
         {MODULES.map((m) => {
           const snap = snaps[m.href];

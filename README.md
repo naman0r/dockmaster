@@ -12,7 +12,7 @@ what's on your machine, and it should be able to *safely* act on it.
 
 | Module    | What it does |
 | --------- | ------------ |
-| **Harbor**    | Landing overview: one live card per module. |
+| **Harbor**    | Landing overview: one live card per module plus a system vitals strip (uptime, load, memory, disk, battery). |
 | **Ports**     | Every listening dev server (lsof/ps), with a guarded stop button. Full Port Authority behavior: tree-kill, SIGTERM-then-confirmed-SIGKILL, PID-reuse protection, LAN-exposure badges. |
 | **Repos**     | Status board for every git repo under your dev root: dirty files, ahead/behind, stale branches, last commit. |
 | **Worktrees** | Linked worktrees and branches older than 30 days. Remove worktrees, prune, delete branches — main worktree and default branches are off limits. |
