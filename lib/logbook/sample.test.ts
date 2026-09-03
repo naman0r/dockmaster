@@ -2,22 +2,19 @@ import { describe, expect, it } from "vitest";
 import { parseOsascriptOutput, attributeProject } from "./sample";
 
 describe("parseOsascriptOutput", () => {
-  it("splits app and title at the first comma", () => {
-    expect(parseOsascriptOutput("Code, file.ts — my-repo — Visual Studio Code")).toEqual({
+  it("splits app and title at the first linefeed", () => {
+    expect(parseOsascriptOutput("Code\nfile.ts — my-repo — Visual Studio Code")).toEqual({
       app: "Code",
       title: "file.ts — my-repo — Visual Studio Code",
     });
   });
 
-  it("handles a title containing commas", () => {
-    expect(parseOsascriptOutput("Code, a, b, c")).toEqual({ app: "Code", title: "a, b, c" });
+  it("keeps the full title even when it contains commas", () => {
+    expect(parseOsascriptOutput("Code\na, b, c")).toEqual({ app: "Code", title: "a, b, c" });
   });
 
-  it("handles missing title", () => {
-    expect(parseOsascriptOutput("Finder, missing value")).toEqual({
-      app: "Finder",
-      title: "missing value",
-    });
+  it("treats an empty title line as no title", () => {
+    expect(parseOsascriptOutput("Finder\n")).toEqual({ app: "Finder", title: "" });
   });
 
   it("handles app-only output", () => {

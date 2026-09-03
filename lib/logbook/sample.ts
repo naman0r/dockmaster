@@ -3,14 +3,13 @@ import { devRoot } from "@/lib/settings";
 
 export type Sample = { app: string; title: string };
 
-// osascript returns comma-joined text: "Code, file.ts — repo — Editor".
-// A window title may itself contain commas; the first comma separates app
-// from title, everything after it is title.
+// sampleFrontmost emits `app\n title` via linefeed so window titles that
+// contain commas survive intact.
 export function parseOsascriptOutput(output: string): Sample {
-  const trimmed = output.trim().replace(/,+$/, "");
-  const comma = trimmed.indexOf(",");
-  if (comma < 0) return { app: trimmed, title: "" };
-  return { app: trimmed.slice(0, comma).trim(), title: trimmed.slice(comma + 1).trim() };
+  const trimmed = output.replace(/\n+$/, "");
+  const nl = trimmed.indexOf("\n");
+  if (nl < 0) return { app: trimmed.trim(), title: "" };
+  return { app: trimmed.slice(0, nl).trim(), title: trimmed.slice(nl + 1).trim() };
 }
 
 const BROWSERS = new Set([
