@@ -1,16 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hostIsLoopback } from "@/lib/loopback";
 
-// DNS rebinding defense: every request must claim a loopback Host. The API
-// token + Origin check in lib/guard.ts adds the second layer on top of this.
+// DNS rebinding defense for every route. The API token + Origin check in
+// lib/guard.ts is the second layer on top of this.
 export function middleware(req: NextRequest) {
-  const host = (req.headers.get("host") || "").toLowerCase();
-  const port = process.env.PORT || "3000";
-  const allowed = new Set([
-    `127.0.0.1:${port}`,
-    `localhost:${port}`,
-    `[::1]:${port}`,
-  ]);
-  if (!allowed.has(host)) {
+  if (!hostIsLoopback(req.headers.get("host") || "")) {
     return new NextResponse("Forbidden", { status: 403 });
   }
   return NextResponse.next();

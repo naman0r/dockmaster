@@ -3,16 +3,14 @@
 // environment (no nvm, no homebrew PATH).
 
 import { execFileSync } from "child_process";
-import { createRequire } from "module";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { dockmasterPort, loadEnv, repoRoot } from "./serve.mjs";
 
 const LABEL = "com.dockmaster.app";
 
-function repoRoot() {
-  return path.resolve(import.meta.dirname, "..");
-}
+loadEnv();
 
 function plistPath() {
   return path.join(os.homedir(), "Library", "LaunchAgents", `${LABEL}.plist`);
@@ -26,22 +24,10 @@ function logsDir() {
   return path.join(dir, "logs");
 }
 
-function nextBin() {
-  const require = createRequire(import.meta.url);
-  return require.resolve("next/dist/bin/next");
-}
-
 function plistXml() {
   const logs = logsDir();
   fs.mkdirSync(logs, { recursive: true });
-  const args = [
-    process.execPath,
-    nextBin(),
-    "start",
-    "-H",
-    "127.0.0.1",
-  ];
-  const port = process.env.PORT || "4310";
+  const args = [process.execPath, path.join(repoRoot, "scripts", "serve.mjs"), "start"];
   const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,11 +38,7 @@ function plistXml() {
   <array>
 ${args.map((a) => `    <string>${esc(a)}</string>`).join("\n")}
   </array>
-  <key>WorkingDirectory</key><string>${esc(repoRoot())}</string>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>PORT</key><string>${esc(port)}</string>
-  </dict>
+  <key>WorkingDirectory</key><string>${esc(repoRoot)}</string>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>ProcessType</key><string>Background</string>
@@ -81,7 +63,7 @@ function bootout() {
 }
 
 function install() {
-  if (!fs.existsSync(path.join(repoRoot(), ".next", "BUILD_ID"))) {
+  if (!fs.existsSync(path.join(repoRoot, ".next", "BUILD_ID"))) {
     console.error("No production build found. Run `npm run build` first.");
     process.exit(1);
   }
@@ -95,9 +77,8 @@ function install() {
     console.error(`launchctl bootstrap failed: ${err.stderr || err.message}`);
     process.exit(1);
   }
-  const port = process.env.PORT || "4310";
   console.log(`Installed ${LABEL} at ${file}`);
-  console.log(`Open http://localhost:${port}`);
+  console.log(`Open http://localhost:${dockmasterPort()}`);
 }
 
 function uninstall() {

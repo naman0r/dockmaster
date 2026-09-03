@@ -4,9 +4,9 @@
   "private": true,
   "description": "Local dev dashboard: ports, repos, worktrees, health, hosts, processes, secrets, logbook",
   "scripts": {
-    "dev": "next dev -H 127.0.0.1",
+    "dev": "node scripts/serve.mjs dev",
     "build": "next build",
-    "start": "next start -H 127.0.0.1",
+    "start": "node scripts/serve.mjs start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "agent:install": "node scripts/agent.mjs install",
