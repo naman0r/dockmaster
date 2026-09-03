@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client/api";
 import { usePoll } from "@/components/hooks";
 import {
@@ -9,6 +9,7 @@ import {
   EmptyState,
   ErrorNote,
   PageHeader,
+  SearchInput,
   Toggle,
   useToast,
 } from "@/components/ui";
@@ -45,6 +46,7 @@ export default function ProcessesPage() {
   const [pendingForce, setPendingForce] = useState<Set<number>>(new Set());
   const [busyPid, setBusyPid] = useState<number | null>(null);
   const [enabled, setEnabled] = useState(true);
+  const [query, setQuery] = useState("");
   const toast = useToast();
 
   const refresh = useCallback(async () => {
@@ -104,6 +106,17 @@ export default function ProcessesPage() {
   );
 
   const data = snap?.data;
+  const filtered = useMemo(() => {
+    const sample = data?.sample || [];
+    const needle = query.trim().toLowerCase();
+    if (!needle) return sample;
+    return sample.filter((p) =>
+      `${p.pid} ${p.user} ${basename(p.command)} ${p.command}`.toLowerCase().includes(needle),
+    );
+  }, [data, query]);
+
+  // Shares the row grid so the labels sit exactly over their columns.
+  const GRID = "grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 px-[18px]";
 
   return (
     <>
@@ -114,6 +127,13 @@ export default function ProcessesPage() {
         right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="grow basis-[260px] max-w-[420px]">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="pid, user, command…"
+          />
+        </div>
         <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {data
             ? `sampled ${new Date(data.sampledAt).toLocaleTimeString()} over ${data.intervalMs}ms`
@@ -125,9 +145,18 @@ export default function ProcessesPage() {
         <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
       ) : !data || data.sample.length === 0 ? (
         <EmptyState glyph="[…]" title="Sampling" hint="Two ps passes, one second apart." />
+      ) : filtered.length === 0 ? (
+        <EmptyState glyph="[ ? ]" title="No matching processes" hint="Try a pid, user, or command name." />
       ) : (
         <div className="flex flex-col gap-2">
-          {data.sample.map((p) => {
+          <div className={`${GRID} pb-1 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet`}>
+            <span>PID</span>
+            <span>Command</span>
+            <span className="min-w-16 text-right">CPU</span>
+            <span className="min-w-[72px] text-right">Mem</span>
+            <span />
+          </div>
+          {filtered.map((p) => {
             const mine = p.uid === data.currentUid;
             const force = pendingForce.has(p.pid);
             return (
