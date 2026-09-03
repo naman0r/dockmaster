@@ -21,6 +21,7 @@ what's on your machine, and it should be able to *safely* act on it.
 | **Processes** | Instantaneous CPU (two ps samples, one second apart) and memory. Stop is guarded like Ports: own processes only, never PID 1 or Dockmaster's ancestors. |
 | **Secrets**   | Credential-shaped strings in *tracked* files across all repos (AWS/Slack/GitHub/Google/OpenAI keys, private key blocks, generic assignments). Previews are redacted server-side; the API never returns full secret text. Also lists untracked .env files (the good kind). |
 | **Logbook**   | "Which project had you today" — samples the frontmost app via osascript. Fully demand-driven: it records only while the page is open and visible. Window titles are never stored. |
+| **Notepad**   | Local scratch pad: timestamped dev notes (tools you found, snippets, ideas) stored in `~/.dockmaster/notes.json`. |
 
 Every module can be switched off from its own page (persisted in `~/.dockmaster/settings.json`).
 

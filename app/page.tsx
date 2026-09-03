@@ -120,6 +120,17 @@ const MODULES: ModuleCard[] = [
       return `${top.project} · ${top.minutes}m today`;
     },
   },
+  {
+    href: "/notepad",
+    glyph: "NP",
+    title: "Notepad",
+    description: "Local scratch pad for dev notes and tools worth remembering.",
+    endpoint: "/api/notes",
+    describe: (s) => {
+      const n = countOf((s.data as { notes?: unknown[] } | null)?.notes);
+      return n === 1 ? "1 note" : `${n} notes`;
+    },
+  },
 ];
 
 export default function OverviewPage() {
