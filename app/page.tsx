@@ -150,19 +150,21 @@ export default function OverviewPage() {
         description="Everything Dockmaster knows right now. Modules only scan while a page is open, and each can be switched off from its own page."
       />
       <ErrorNote message={error} />
-      <div className="grid2" style={{ gap: 14 }}>
+      <div className="grid gap-3.5 grid-cols-2 max-[560px]:grid-cols-1">
         {MODULES.map((m) => {
           const snap = snaps[m.href];
           return (
-            <Card key={m.href} className="pad">
-              <div className="overview-card-head">
-                <span className="glyph-badge">{m.glyph}</span>
+            <Card key={m.href} className="p-[22px_24px]">
+              <div className="mb-3.5 flex items-start gap-[13px]">
+                <span className="grid size-9 flex-none place-items-center rounded-[9px] border border-line-bright bg-accent/10 font-mono text-[11px] font-bold leading-none text-accent">
+                  {m.glyph}
+                </span>
                 <div>
-                  <h3>{m.title}</h3>
-                  <p className="muted trunc">{m.description}</p>
+                  <h3 className="mt-0.5 mb-[5px] text-[15px]">{m.title}</h3>
+                  <p className="text-[11.5px] leading-[1.5] text-muted truncate">{m.description}</p>
                 </div>
               </div>
-              <p className="overview-stat mono">
+              <p className="mb-3.5 min-h-[34px] text-[12px] tracking-[0.02em] text-muted">
                 {snap === undefined
                   ? "…"
                   : snap === null
@@ -171,7 +173,10 @@ export default function OverviewPage() {
                       ? m.describe(snap)
                       : "module off"}
               </p>
-              <a className="btn stop" href={m.href}>
+              <a
+                className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline transition-colors border-accent/30 text-accent hover:border-accent hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                href={m.href}
+              >
                 Open
               </a>
             </Card>

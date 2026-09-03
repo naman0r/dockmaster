@@ -111,26 +111,24 @@ export default function HealthPage() {
         description="A tiny personal status page: localhost dev servers and anything else worth watching, checked with a 4s timeout."
         right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
-      <div className="toolbar">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Button busy={checking} onClick={runNow}>
           {checking ? "Checking…" : "Check all now"}
         </Button>
-        <span className="hint mono">
+        <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}` : "waiting…"}
         </span>
       </div>
       <ErrorNote message={error} />
-      <div className="toolbar" style={{ gap: 8 }}>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
-          className="search"
-          style={{ maxWidth: 200, background: "#080e19", paddingLeft: 12 }}
+          className="search-icon max-w-[200px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="label"
         />
         <input
-          className="search"
-          style={{ maxWidth: 360, background: "#080e19", paddingLeft: 12 }}
+          className="search-icon max-w-[360px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="http://localhost:3000"
@@ -148,25 +146,24 @@ export default function HealthPage() {
           hint="Add a localhost URL or anything else you care about."
         />
       ) : (
-        <div className="table">
+        <div className="flex flex-col gap-2">
           {checks.map((c) => (
             <div
               key={c.id}
-              className="row"
-              style={{ gridTemplateColumns: "auto minmax(0,1fr) auto auto auto" }}
+              className="card-surface grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
             >
-              <span className={`mono ${c.lastOk === null ? "quiet" : c.lastOk ? "ok-text" : "alarm-text"}`}>
+              <span className={`font-mono ${c.lastOk === null ? "text-quiet" : c.lastOk ? "text-ok" : "text-alarm"}`}>
                 ●
               </span>
-              <div className="trunc">
+              <div className="truncate">
                 <strong>{c.label}</strong>
-                <div className="hint mono trunc" title={c.url}>
+                <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={c.url}>
                   {c.url}
                   {c.error ? ` — ${c.error}` : ""}
                 </div>
               </div>
-              <span className="mono muted">{c.lastStatus ?? "—"}</span>
-              <span className="mono muted">{c.latencyMs !== null ? `${c.latencyMs}ms` : "—"}</span>
+              <span className="font-mono text-muted">{c.lastStatus ?? "—"}</span>
+              <span className="font-mono text-muted">{c.latencyMs !== null ? `${c.latencyMs}ms` : "—"}</span>
               <Button variant="ghost" onClick={() => remove(c.id)}>
                 Remove
               </Button>
@@ -174,7 +171,7 @@ export default function HealthPage() {
           ))}
         </div>
       )}
-      <div style={{ marginTop: 10 }}>
+      <div className="mt-2.5">
         {checks.some((c) => c.lastOk === false) ? (
           <Badge variant="alarm">{checks.filter((c) => c.lastOk === false).length} down</Badge>
         ) : checks.length ? (

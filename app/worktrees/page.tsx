@@ -113,11 +113,11 @@ export default function WorktreesPage() {
         description="Linked worktrees across every repo, prunable leftovers, and branches older than 30 days. Removing is guarded: the main worktree and default branches are off limits."
         right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
-      <div className="toolbar">
-        <div className="grow">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="basis-[260px] grow max-w-[420px]">
           <SearchInput value={query} onChange={setQuery} placeholder="repo name or path…" />
         </div>
-        <span className="hint mono">
+        <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}` : "scanning…"}
         </span>
       </div>
@@ -132,11 +132,11 @@ export default function WorktreesPage() {
         />
       ) : (
         repos.map((repo) => (
-          <Card key={repo.path} className="pad" >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 12 }}>
+          <Card key={repo.path} className="p-[22px_24px]">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
               <div>
-                <h3 style={{ margin: 0 }}>{repo.name}</h3>
-                <p className="hint mono trunc" style={{ margin: "4px 0 0" }}>{repo.path}</p>
+                <h3>{repo.name}</h3>
+                <p className="mt-1 font-mono text-[11px] leading-relaxed text-quiet truncate">{repo.path}</p>
               </div>
               <Button
                 variant="ghost"
@@ -153,20 +153,19 @@ export default function WorktreesPage() {
                 Prune
               </Button>
             </div>
-            <div className="table" style={{ marginBottom: repo.staleBranches.length ? 14 : 0 }}>
+            <div className={repo.staleBranches.length ? "mb-3.5 flex flex-col gap-2" : "flex flex-col gap-2"}>
               {repo.worktrees.map((wt) => (
                 <div
                   key={wt.path}
-                  className="row"
-                  style={{ gridTemplateColumns: "minmax(0,1fr) auto auto", padding: "10px 14px" }}
+                  className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                 >
-                  <div className="trunc">
-                    <span className="mono muted">{wt.branch}</span>
-                    <div className="hint mono trunc" title={wt.path}>
+                  <div className="min-w-0 truncate">
+                    <span className="font-mono text-muted">{wt.branch}</span>
+                    <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={wt.path}>
                       {wt.path}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div className="flex gap-1.5">
                     {wt.isMain ? <Badge variant="scope">main</Badge> : null}
                     {wt.isPrunable ? <Badge variant="alarm">prunable</Badge> : null}
                   </div>
@@ -194,19 +193,18 @@ export default function WorktreesPage() {
             </div>
             {repo.staleBranches.length > 0 ? (
               <>
-                <p className="hint" style={{ margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.12em", fontSize: 9 }}>
+                <p className="mb-2 font-mono text-[9px] uppercase leading-relaxed tracking-[0.12em] text-quiet">
                   Stale branches
                 </p>
-                <div className="table">
+                <div className="flex flex-col gap-2">
                   {repo.staleBranches.map((b) => (
                     <div
                       key={b.name}
-                      className="row"
-                      style={{ gridTemplateColumns: "minmax(0,1fr) auto auto", padding: "10px 14px" }}
+                      className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                     >
-                      <div className="trunc">
-                        <span className="mono muted">{b.name}</span>
-                        <span className="hint mono" style={{ marginLeft: 10 }}>
+                      <div className="min-w-0 truncate">
+                        <span className="font-mono text-muted">{b.name}</span>
+                        <span className="ml-2.5 font-mono text-[11px] leading-relaxed text-quiet">
                           {formatRelative(b.lastCommitIso)}
                         </span>
                       </div>

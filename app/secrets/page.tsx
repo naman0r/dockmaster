@@ -95,11 +95,11 @@ export default function SecretsPage() {
         description="Credential-shaped strings in TRACKED files across every repo, plus .env hygiene. Previews are redacted; the server never returns full secret text."
         right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
-      <div className="toolbar">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Button busy={rescanning} onClick={rescan}>
           {rescanning ? "Scanning…" : "Rescan"}
         </Button>
-        <span className="hint mono">
+        <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {data
             ? `${data.scannedRepos} repos${
                 snap?.scanMs !== undefined ? ` / ${snap.scanMs}ms` : ""
@@ -114,9 +114,9 @@ export default function SecretsPage() {
         <EmptyState glyph="[…]" title="Walking your dev root" />
       ) : (
         <>
-          <div className="section-heading">
+          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Tracked findings</span>
-            <span>{data.findings.length} total</span>
+            <span className="text-quiet tracking-[0.08em]">{data.findings.length} total</span>
           </div>
           {data.findings.length === 0 ? (
             <EmptyState
@@ -126,21 +126,20 @@ export default function SecretsPage() {
             />
           ) : (
             [...grouped.entries()].map(([repo, findings]) => (
-              <Card key={repo} className="pad" style={{ marginBottom: 14 }}>
-                <h3 style={{ margin: "0 0 10px" }}>{repo}</h3>
-                <div className="table" style={{ gap: 6 }}>
+              <Card key={repo} className="p-[22px_24px] mb-3.5">
+                <h3 className="mb-2.5">{repo}</h3>
+                <div className="flex flex-col gap-1.5">
                   {findings.map((f, i) => (
                     <div
                       key={i}
-                      className="row"
-                      style={{ gridTemplateColumns: "auto minmax(0,1fr) auto", padding: "10px 14px" }}
+                      className="card-surface grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                     >
                       <Badge variant={f.severity === "high" ? "alarm" : "scope"}>{f.ruleLabel}</Badge>
-                      <div className="trunc">
-                        <span className="mono muted">
+                      <div className="truncate">
+                        <span className="font-mono text-muted">
                           {f.path}:{f.line}
                         </span>
-                        <span className="hint mono" style={{ marginLeft: 10 }}>
+                        <span className="ml-2.5 font-mono text-[11px] leading-relaxed text-quiet">
                           {f.preview}
                         </span>
                       </div>
@@ -151,20 +150,20 @@ export default function SecretsPage() {
               </Card>
             ))
           )}
-          <div className="section-heading">
+          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Untracked .env files</span>
-            <span>{data.untrackedEnvFiles.length} (the good kind)</span>
+            <span className="text-quiet tracking-[0.08em]">{data.untrackedEnvFiles.length} (the good kind)</span>
           </div>
           {data.untrackedEnvFiles.length === 0 ? (
-            <p className="hint">No local .env files sitting untracked.</p>
+            <p className="font-mono text-[11px] leading-relaxed text-quiet">No local .env files sitting untracked.</p>
           ) : (
-            <Card className="pad">
-              <div className="table" style={{ gap: 4 }}>
+            <Card className="p-[22px_24px]">
+              <div className="flex flex-col gap-1">
                 {data.untrackedEnvFiles.map((u, i) => (
-                  <div key={i} className="mono trunc" style={{ fontSize: 12 }}>
-                    <span style={{ color: "var(--accent)" }}>{u.repo}</span>
-                    <span className="muted"> {u.path}</span>
-                    <span className="quiet"> — not committed</span>
+                  <div key={i} className="truncate font-mono text-xs">
+                    <span className="text-accent">{u.repo}</span>
+                    <span className="text-muted"> {u.path}</span>
+                    <span className="text-quiet"> — not committed</span>
                   </div>
                 ))}
               </div>

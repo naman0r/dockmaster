@@ -13,7 +13,6 @@ import {
   Toggle,
   useToast,
 } from "@/components/ui";
-import styles from "./page.module.css";
 
 type Service = {
   pid: number;
@@ -170,8 +169,8 @@ export default function PortsPage() {
           <Toggle checked={enabled} onChange={toggleModule} label="Module on" />
         }
       />
-      <div className="toolbar">
-        <div className="grow">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="grow basis-[260px] max-w-[420px]">
           <SearchInput
             value={query}
             onChange={setQuery}
@@ -179,7 +178,7 @@ export default function PortsPage() {
           />
         </div>
         <Toggle checked={showSystem} onChange={setShowSystem} label="Background services" />
-        <span className="hint mono">
+        <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt
             ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}${
                 snap.scanMs !== undefined ? ` / ${snap.scanMs}ms` : ""
@@ -188,9 +187,9 @@ export default function PortsPage() {
         </span>
       </div>
       <ErrorNote message={error} />
-      <div className="section-heading">
+      <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
         <span>Active berths</span>
-        <span>
+        <span className="text-quiet tracking-[0.08em]">
           {uniquePorts} ports / {visible.length} entries
         </span>
       </div>
@@ -207,7 +206,7 @@ export default function PortsPage() {
           }
         />
       ) : (
-        <div className={styles.services}>
+        <div className="grid gap-2.5">
           {visible.map((s) => {
             const key = identity(s);
             const force = pendingForce.has(key);
@@ -215,18 +214,24 @@ export default function PortsPage() {
             return (
               <article
                 key={key}
-                className={`${styles.service}${s.isExposed ? ` ${styles.exposed}` : ""}`}
+                className={`card-surface relative grid min-h-[132px] grid-cols-[164px_minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-line transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright max-[810px]:grid-cols-[126px_minmax(0,1fr)]${
+                  s.isExposed
+                    ? " after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
+                    : ""
+                }`}
               >
-                <div className={styles.berth}>
-                  <div className={styles.portNumber}>
-                    <span className={styles.colon}>:</span>
+                <div className="berth-bg flex flex-col justify-center border-r border-line px-6 py-[22px]">
+                  <div className="font-mono text-[clamp(28px,3.6vw,38px)] leading-none tracking-[-0.08em] text-ink">
+                    <span className="text-accent">:</span>
                     {s.port}
                   </div>
-                  <div className={styles.listen}>TCP / LISTEN</div>
+                  <div className="mt-2.5 ml-[3px] font-mono text-[8px] font-semibold tracking-[0.18em] text-quiet">
+                    TCP / LISTEN
+                  </div>
                 </div>
-                <div className={styles.manifest}>
-                  <div className={styles.titleLine}>
-                    <h3 className={styles.project} title={s.project}>
+                <div className="min-w-0 px-6 py-5">
+                  <div className="mb-2.5 flex min-w-0 items-center gap-2">
+                    <h3 className="m-0 min-w-0 truncate text-base font-[650]" title={s.project}>
                       {s.project}
                     </h3>
                     <Badge>{s.kind}</Badge>
@@ -234,24 +239,34 @@ export default function PortsPage() {
                       {s.isExposed ? "LAN exposed" : "Local only"}
                     </Badge>
                   </div>
-                  <div className={`mono muted trunc ${styles.cwd}`} title={s.cwd}>
+                  <div
+                    className="font-mono text-muted truncate mb-2 text-[11px] before:content-['cwd__'] before:text-accent before:opacity-70"
+                    title={s.cwd}
+                  >
                     cwd {compactPath(s.cwd, s.user)}
                   </div>
-                  <div className={styles.meta}>
+                  <div className="flex flex-wrap gap-y-1.5 gap-x-[15px] font-mono text-[9px] font-medium uppercase leading-[1.3] tracking-[0.06em] text-quiet [&>span+span]:relative [&>span+span]:after:absolute [&>span+span]:after:-left-2.5 [&>span+span]:after:text-line-bright [&>span+span]:after:content-['/']">
                     <span>PID {s.pid}</span>
                     <span>PPID {s.ppid}</span>
                     <span>{formatUptime(s.startedAt)}</span>
                     <span>{s.user}</span>
-                    <span className="mono quiet">{s.addresses.join(" ")}</span>
+                    <span className="font-mono text-quiet">{s.addresses.join(" ")}</span>
                   </div>
-                  <div className={`mono quiet trunc ${styles.argv}`} title={s.argv}>
+                  <div
+                    className="font-mono text-quiet truncate mt-2 text-[11px]"
+                    title={s.argv}
+                  >
                     $ {s.argv}
                   </div>
-                  {s.note ? <div className={`alarm-text ${styles.note}`}>{s.note}</div> : null}
+                  {s.note ? (
+                    <div className="text-alarm mt-[7px] font-mono text-[9px] font-medium leading-[1.35] tracking-[0.03em]">
+                      {s.note}
+                    </div>
+                  ) : null}
                 </div>
-                <div className={styles.actions}>
+                <div className="flex min-w-[112px] flex-col justify-center gap-2 py-5 pl-2 pr-5 max-[810px]:col-span-full max-[810px]:flex-row max-[810px]:p-[0_18px_18px] max-[810px]:[&>*]:flex-1">
                   <a
-                    className="btn"
+                    className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border border-line-bright px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline outline-none transition-colors text-muted hover:border-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     href={`http://localhost:${s.port}/`}
                     target="_blank"
                     rel="noopener noreferrer"

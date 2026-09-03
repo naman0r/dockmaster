@@ -105,40 +105,38 @@ export default function HostsPage() {
         <EmptyState glyph="[…]" title="Reading /etc/hosts" />
       ) : (
         <>
-          <div className="section-heading">
+          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Current /etc/hosts</span>
-            <span>
+            <span className="text-quiet tracking-[0.08em]">
               {data.activeProfile ? `active profile: ${data.activeProfile}` : "no profile active"}
             </span>
           </div>
-          <Card className="pad">
-            <div className="table" style={{ gap: 4 }}>
+          <Card className="p-[22px_24px]">
+            <div className="flex flex-col gap-1">
               {data.entries.map((e, i) => (
                 <div
                   key={i}
-                  className="mono trunc"
-                  style={{ opacity: e.enabled ? 1 : 0.45, fontSize: 12 }}
+                  className={`font-mono truncate text-xs${e.enabled ? "" : " opacity-45"}`}
                   title={e.raw}
                 >
-                  {!e.enabled ? <span className="quiet">off </span> : null}
-                  <span style={{ color: e.enabled ? "var(--accent)" : undefined }}>{e.ip || "—"}</span>
+                  {!e.enabled ? <span className="text-quiet">off </span> : null}
+                  <span className={e.enabled ? "text-accent" : undefined}>{e.ip || "—"}</span>
                   {"  "}
-                  <span className="muted">{e.hostnames.join(" ")}</span>
-                  {e.comment ? <span className="quiet"> {e.comment}</span> : null}
+                  <span className="text-muted">{e.hostnames.join(" ")}</span>
+                  {e.comment ? <span className="text-quiet"> {e.comment}</span> : null}
                 </div>
               ))}
             </div>
           </Card>
 
-          <div className="section-heading">
+          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Profiles</span>
-            <span>{data.profiles.length} saved</span>
+            <span className="text-quiet tracking-[0.08em]">{data.profiles.length} saved</span>
           </div>
-          <Card className="pad">
-            <div className="toolbar" style={{ marginBottom: data.profiles.length ? 14 : 0 }}>
+          <Card className="p-[22px_24px]">
+            <div className={`flex flex-wrap items-center gap-3 ${data.profiles.length ? "mb-3.5" : "mb-0"}`}>
               <input
-                className="search"
-                style={{ maxWidth: 260, background: "#080e19", paddingLeft: 12 }}
+                className="search-icon max-w-[260px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
                 placeholder="new profile name"
@@ -160,21 +158,20 @@ export default function HostsPage() {
               </Button>
             </div>
             {data.profiles.length === 0 ? (
-              <p className="hint" style={{ margin: 0 }}>
+              <p className="m-0 font-mono text-[11px] leading-relaxed text-quiet">
                 No profiles yet. &quot;Save current&quot; snapshots the live /etc/hosts; apply any
                 profile to switch back and forth.
               </p>
             ) : (
-              <div className="table">
+              <div className="flex flex-col gap-2">
                 {data.profiles.map((p) => (
                   <div
                     key={p.id}
-                    className="row"
-                    style={{ gridTemplateColumns: "minmax(0,1fr) auto auto auto", padding: "12px 16px" }}
+                    className="card-surface grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 rounded-xl border border-line px-4 py-3 transition-colors hover:border-line-bright"
                   >
-                    <div className="trunc">
+                    <div className="truncate">
                       <strong>{p.name}</strong>
-                      <span className="hint mono" style={{ marginLeft: 10 }}>
+                      <span className="ml-2.5 font-mono text-[11px] leading-relaxed text-quiet">
                         {p.lineCount} lines · {new Date(p.createdAt).toLocaleDateString()}
                       </span>
                     </div>
@@ -209,7 +206,7 @@ export default function HostsPage() {
               </div>
             )}
           </Card>
-          <p className="hint" style={{ marginTop: 12 }}>
+          <p className="mt-3 font-mono text-[11px] leading-relaxed text-quiet">
             Backups land in ~/.dockmaster/hosts-backups/ before every apply. DNS cache is flushed
             after each write.
           </p>

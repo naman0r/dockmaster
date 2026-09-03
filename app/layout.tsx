@@ -22,9 +22,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Boot token={getToken()} />
         <ToastProvider>
-          <div className="shell">
+          <div className="grid min-h-screen grid-cols-[216px_minmax(0,1fr)] max-[900px]:grid-cols-1">
             <Nav />
-            <main className="content">{children}</main>
+            <main className="mx-auto w-[min(1180px,calc(100%-56px))] pt-10 pb-12 max-[900px]:w-[min(100%-32px,760px)] max-[900px]:pt-[26px] max-[560px]:w-[calc(100%-18px)]">
+              {children}
+            </main>
           </div>
         </ToastProvider>
       </body>

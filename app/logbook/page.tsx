@@ -135,11 +135,11 @@ export default function LogbookPage() {
       />
       <ErrorNote message={tickError || error} />
       {tickError ? (
-        <p className="hint" style={{ marginTop: -6 }}>
+        <p className="-mt-1.5 font-mono text-[11px] leading-relaxed text-quiet">
           Heartbeat paused until you toggle tracking off and on again.
         </p>
       ) : null}
-      <div className="toolbar">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         {enabled ? (
           <Badge variant={data?.sessionActive ? "quiet" : "scope"}>
             {data?.sessionActive ? "recording" : "waiting for first tick"}
@@ -148,7 +148,7 @@ export default function LogbookPage() {
           <Badge variant="quiet">off</Badge>
         )}
         {lastTick ? (
-          <span className="hint mono">
+          <span className="font-mono text-[11px] leading-relaxed text-quiet">
             last sample: {lastTick} ({clockTime(new Date().toISOString())})
           </span>
         ) : null}
@@ -161,56 +161,54 @@ export default function LogbookPage() {
         />
       ) : (
         <>
-          <div className="grid2" style={{ alignItems: "start" }}>
-            <Card className="pad">
-              <h3 style={{ margin: "0 0 12px" }}>Today</h3>
+          <div className="grid grid-cols-2 items-start gap-3.5 max-[560px]:grid-cols-1">
+            <Card className="p-[22px_24px]">
+              <h3 className="mb-3">Today</h3>
               {!data || data.today.length === 0 ? (
-                <p className="hint" style={{ margin: 0 }}>
+                <p className="font-mono text-[11px] leading-relaxed text-quiet">
                   No entries yet today.
                 </p>
               ) : (
-                <div className="table" style={{ gap: 6 }}>
+                <div className="flex flex-col gap-1.5">
                   {data.today.map((b, i) => (
                     <div
                       key={i}
-                      className="row"
-                      style={{ gridTemplateColumns: "minmax(0,1fr) auto auto", padding: "10px 14px" }}
+                      className="card-surface grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                     >
-                      <div className="trunc">
+                      <div className="truncate">
                         <strong>{b.project}</strong>
-                        <div className="hint mono">
+                        <div className="font-mono text-[11px] leading-relaxed text-quiet">
                           {b.app} · {clockTime(b.first)}–{clockTime(b.last)}
                         </div>
                       </div>
-                      <span className="mono muted">{formatMinutes(b.minutes)}</span>
+                      <span className="font-mono text-muted">{formatMinutes(b.minutes)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </Card>
-            <Card className="pad">
-              <h3 style={{ margin: "0 0 12px" }}>This week</h3>
+            <Card className="p-[22px_24px]">
+              <h3 className="mb-3">This week</h3>
               {!data || data.week.length === 0 ? (
-                <p className="hint" style={{ margin: 0 }}>
+                <p className="font-mono text-[11px] leading-relaxed text-quiet">
                   No entries in the last 7 days.
                 </p>
               ) : (
-                <div className="table" style={{ gap: 6 }}>
+                <div className="flex flex-col gap-1.5">
                   {data.week.map((w) => (
                     <div
                       key={w.project}
-                      className="row"
-                      style={{ gridTemplateColumns: "minmax(0,1fr) auto", padding: "10px 14px" }}
+                      className="card-surface grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                     >
-                      <span className="trunc">{w.project}</span>
-                      <span className="mono muted">{formatMinutes(w.minutes)}</span>
+                      <span className="truncate">{w.project}</span>
+                      <span className="font-mono text-muted">{formatMinutes(w.minutes)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </Card>
           </div>
-          <div className="toolbar" style={{ marginTop: 16 }}>
+          <div className="mb-4 mt-4 flex flex-wrap items-center gap-3">
             <Button variant="ghost" onClick={() => erase("day")}>
               Erase today
             </Button>

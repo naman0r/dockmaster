@@ -116,14 +116,14 @@ export default function ReposPage() {
         } levels deep. Answers "what was I doing".`}
         right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
-      <div className="toolbar">
-        <div className="grow">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="basis-[260px] grow max-w-[420px]">
           <SearchInput value={query} onChange={setQuery} placeholder="name, branch, path…" />
         </div>
         <Button busy={refreshing} onClick={forceRefresh}>
           {refreshing ? "Scanning…" : "Refresh"}
         </Button>
-        <span className="hint mono">
+        <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt
             ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}${
                 snap.scanMs !== undefined ? ` / ${snap.scanMs}ms` : ""
@@ -145,22 +145,25 @@ export default function ReposPage() {
           }
         />
       ) : (
-        <div className="table">
+        <div className="flex flex-col gap-2">
           {repos.map((r) => (
-            <div key={r.path} className="row" style={{ gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr) auto" }}>
-              <div className="trunc">
+            <div
+              key={r.path}
+              className="grid card-surface grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
+            >
+              <div className="min-w-0 truncate">
                 <strong>{r.name}</strong>
-                <div className="hint mono trunc" title={r.path}>
+                <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={r.path}>
                   {r.path}
                 </div>
               </div>
-              <div className="trunc">
-                <span className="mono muted">{r.branch}</span>
-                <div className="hint mono trunc" title={r.lastCommitSubject}>
+              <div className="min-w-0 truncate">
+                <span className="font-mono text-muted">{r.branch}</span>
+                <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={r.lastCommitSubject}>
                   {r.lastCommitIso ? `${formatRelative(r.lastCommitIso)} · ${r.lastCommitSubject}` : "—"}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {r.error ? <Badge variant="alarm">git error</Badge> : null}
                 {r.dirty > 0 ? <Badge variant="alarm">dirty {r.dirty}</Badge> : <Badge variant="quiet">clean</Badge>}
                 {r.ahead > 0 ? <Badge variant="scope">ahead {r.ahead}</Badge> : null}

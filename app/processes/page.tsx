@@ -113,8 +113,8 @@ export default function ProcessesPage() {
         description="Instantaneous CPU sampled over one second (not the since-launch average) plus resident memory. Stop is guarded like Ports: own processes only, whole tree, never PID 1."
         right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
-      <div className="toolbar">
-        <span className="hint mono">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {data
             ? `sampled ${new Date(data.sampledAt).toLocaleTimeString()} over ${data.intervalMs}ms`
             : "sampling…"}
@@ -126,27 +126,26 @@ export default function ProcessesPage() {
       ) : !data || data.sample.length === 0 ? (
         <EmptyState glyph="[…]" title="Sampling" hint="Two ps passes, one second apart." />
       ) : (
-        <div className="table">
+        <div className="flex flex-col gap-2">
           {data.sample.map((p) => {
             const mine = p.uid === data.currentUid;
             const force = pendingForce.has(p.pid);
             return (
               <div
                 key={p.pid}
-                className="row"
-                style={{ gridTemplateColumns: "auto minmax(0,1fr) auto auto auto" }}
+                className="card-surface grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
               >
-                <span className="mono quiet">{p.pid}</span>
-                <div className="trunc">
-                  <strong className="mono">{basename(p.command)}</strong>
-                  <span className="hint mono trunc" title={p.command} style={{ marginLeft: 10 }}>
+                <span className="font-mono text-quiet">{p.pid}</span>
+                <div className="truncate">
+                  <strong className="font-mono">{basename(p.command)}</strong>
+                  <span className="ml-2.5 truncate font-mono text-[11px] leading-relaxed text-quiet" title={p.command}>
                     {p.command}
                   </span>
                 </div>
-                <span className="mono muted" style={{ minWidth: 64, textAlign: "right" }}>
+                <span className="min-w-16 text-right font-mono text-muted">
                   {p.cpuPct.toFixed(1)}%
                 </span>
-                <span className="mono muted" style={{ minWidth: 72, textAlign: "right" }}>
+                <span className="min-w-[72px] text-right font-mono text-muted">
                   {formatMem(p.rssKb)}
                 </span>
                 {mine ? (
