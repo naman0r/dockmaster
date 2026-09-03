@@ -1,0 +1,194 @@
+import fs from "fs/promises";
+import path from "path";
+import { exec } from "@/lib/exec";
+import { dataDir, logbookIntervalMs } from "@/lib/settings";
+import { HttpError } from "@/lib/http";
+import {
+  attributeProject,
+  parseOsascriptOutput,
+  projectNames,
+  type Sample,
+} from "./sample";
+
+export type Stretch = { t: string; end?: string; app: string; project: string };
+
+const OSASCRIPT = "/usr/bin/osascript";
+
+export async function sampleFrontmost(): Promise<Sample | null> {
+  let output: string;
+  try {
+    // The try block matters: the frontmost process often has no windows
+    // (Spotlight, menu-bar apps, Finder with everything closed), and asking
+    // for its front window errors with -1719.
+    output = await exec(
+      [
+        OSASCRIPT,
+        "-e",
+        'tell application "System Events"\n  set frontApp to first application process whose frontmost is true\n  set appName to name of frontApp\n  set windowTitle to ""\n  try\n    set windowTitle to name of front window of frontApp\n  end try\n  if windowTitle is missing value then set windowTitle to ""\n  return appName & linefeed & windowTitle\nend tell',
+      ],
+      { timeoutMs: 5000 },
+    );
+  } catch (err) {
+    const message = (err as Error).message;
+    if (
+      /not allowed|-1743|-25211|assistive/i.test(message)
+    ) {
+      throw new HttpError(
+        503,
+        "Could not read the frontmost app. Grant Automation permission (System Settings > Privacy & Security > Automation) for the process running Dockmaster, or disable the logbook module.",
+      );
+    }
+    throw new HttpError(503, `Frontmost app sampling failed: ${message}`);
+  }
+  const sample = parseOsascriptOutput(output);
+  if (!sample.app || sample.app === "missing value") return null;
+  return sample;
+}
+
+function monthFile(date: Date): string {
+  return path.join(dataDir(), "logbook", `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}.jsonl`);
+}
+
+async function readMonthStretches(date: Date): Promise<Stretch[]> {
+  try {
+    const raw = await fs.readFile(monthFile(date), "utf8");
+    return raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Stretch);
+  } catch {
+    return [];
+  }
+}
+
+async function writeMonthStretches(date: Date, stretches: Stretch[]): Promise<void> {
+  const file = monthFile(date);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp`;
+  await fs.writeFile(
+    tmp,
+    stretches.map((s) => JSON.stringify(s)).join("\n") + (stretches.length ? "\n" : ""),
+  );
+  await fs.rename(tmp, file);
+}
+
+function mergeWindowMs(): number {
+  return logbookIntervalMs() * 2.5;
+}
+
+// True when the new sample continues the last stretch: same app+project
+// within the merge window.
+function continuesStretch(last: Stretch, app: string, project: string, now: number): boolean {
+  const start = Date.parse(last.t);
+  if (!Number.isFinite(start)) return false;
+  if (now - start > mergeWindowMs()) return false;
+  return last.app === app && last.project === project;
+}
+
+export async function recordSample(sample: Sample): Promise<{ app: string; project: string }> {
+  const names = await projectNames();
+  const project = attributeProject(sample.app, sample.title, names);
+  const now = new Date();
+  const nowMs = now.getTime();
+  const stretches = await readMonthStretches(now);
+  const last = stretches[stretches.length - 1];
+  if (last && continuesStretch(last, sample.app, project, nowMs)) {
+    last.end = now.toISOString();
+  } else {
+    stretches.push({ t: now.toISOString(), app: sample.app, project });
+  }
+  await writeMonthStretches(now, stretches);
+  return { app: sample.app, project };
+}
+
+export function minutesBetween(stretch: Stretch, dayStartMs: number, dayEndMs: number): number {
+  const start = Date.parse(stretch.t);
+  const end = stretch.end ? Date.parse(stretch.end) : start;
+  if (!Number.isFinite(start)) return 0;
+  const clampedStart = Math.max(start, dayStartMs);
+  const clampedEnd = Math.min(Number.isFinite(end) ? end : start, dayEndMs);
+  return Math.max(0, (clampedEnd - clampedStart) / 60000);
+}
+
+export type Bucket = { app: string; project: string; minutes: number; first: string; last: string };
+
+function bucketize(stretches: Stretch[], dayStartMs: number, dayEndMs: number): Bucket[] {
+  const buckets = new Map<string, Bucket>();
+  for (const stretch of stretches) {
+    const minutes = minutesBetween(stretch, dayStartMs, dayEndMs);
+    if (minutes <= 0) continue;
+    const key = `${stretch.app}\u0000${stretch.project}`;
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.minutes += minutes;
+      bucket.last = stretch.end || stretch.t;
+    } else {
+      buckets.set(key, {
+        app: stretch.app,
+        project: stretch.project,
+        minutes,
+        first: stretch.t,
+        last: stretch.end || stretch.t,
+      });
+    }
+  }
+  return [...buckets.values()].sort((a, b) => b.minutes - a.minutes);
+}
+
+function localDayBounds(date: Date): { startMs: number; endMs: number } {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return { startMs: start.getTime(), endMs: start.getTime() + 86400_000 };
+}
+
+export async function aggregate(): Promise<{
+  sessionActive: boolean;
+  today: Bucket[];
+  week: Array<{ project: string; minutes: number }>;
+}> {
+  const now = new Date();
+  const { startMs, endMs } = localDayBounds(now);
+
+  const thisMonth = await readMonthStretches(now);
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = await readMonthStretches(lastMonthDate);
+  const all = [...lastMonth, ...thisMonth];
+
+  const today = bucketize(all, startMs, endMs).slice(0, 12);
+
+  const weekStartMs = startMs - 6 * 86400_000;
+  const perProject = new Map<string, number>();
+  for (const stretch of all) {
+    const start = Date.parse(stretch.t);
+    if (!Number.isFinite(start) || start < weekStartMs || start > endMs) continue;
+    const dayBounds = localDayBounds(new Date(start));
+    const minutes = minutesBetween(stretch, Math.max(dayBounds.startMs, weekStartMs), dayBounds.endMs);
+    if (minutes <= 0) continue;
+    perProject.set(stretch.project, (perProject.get(stretch.project) || 0) + minutes);
+  }
+  const week = [...perProject.entries()]
+    .map(([project, minutes]) => ({ project, minutes }))
+    .sort((a, b) => b.minutes - a.minutes)
+    .slice(0, 12);
+
+  const lastLine = all[all.length - 1];
+  const sessionActive = Boolean(
+    lastLine && now.getTime() - Date.parse(lastLine.end || lastLine.t) < 45_000,
+  );
+
+  return { sessionActive, today, week };
+}
+
+export async function erase(scope: "day" | "all"): Promise<void> {
+  if (scope === "all") {
+    await fs.rm(path.join(dataDir(), "logbook"), { recursive: true, force: true });
+    return;
+  }
+  const now = new Date();
+  const stretches = await readMonthStretches(now);
+  const { startMs, endMs } = localDayBounds(now);
+  const kept = stretches.filter((s) => {
+    const t = Date.parse(s.t);
+    return !Number.isFinite(t) || t < startMs || t >= endMs;
+  });
+  await writeMonthStretches(now, kept);
+}
