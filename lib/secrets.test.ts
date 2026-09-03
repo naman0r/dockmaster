@@ -3,9 +3,9 @@ import { redact, matchLine, isInterestingFile, RULES } from "./secrets";
 
 describe("redact", () => {
   it("never returns the full secret", () => {
-    const secret = "AKIAIOSFODNN7EXAMPLE";
+    const secret = "AKIA0000000000000000";
     const preview = redact(secret);
-    expect(preview).not.toContain("IOSFODNN7EXAMPLE");
+    expect(preview).not.toContain("0000000000000000");
     expect(preview).toContain("…");
     expect(preview).toContain("20 chars");
   });
@@ -14,11 +14,11 @@ describe("redact", () => {
 describe("matchLine", () => {
   it("matches each rule", () => {
     const cases: Array<[string, string]> = [
-      ["aws = AKIAIOSFODNN7EXAMPLE", "aws-access-key"],
-      ["slack: xoxb-123456789012-abcdef", "slack-token"],
-      ["ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef012345", "github-pat"],
-      ["token = sk-proj-abcdefghij1234567890", "openai-key"],
-      ["key = AIzaSyA1234567890abcdefghijklmnopqrstuv", "google-api-key"],
+      ["aws = AKIA0000000000000000", "aws-access-key"],
+      ["slack: xoxb-0000000000000000", "slack-token"],
+      ["ghp_000000000000000000000000000000000000", "github-pat"],
+      ["token = sk-00000000000000000000", "openai-key"],
+      ["key = AIza00000000000000000000000000000000000", "google-api-key"],
     ];
     for (const [line, ruleId] of cases) {
       expect(matchLine(line).some((h) => h.ruleId === ruleId)).toBe(true);
