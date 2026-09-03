@@ -24,9 +24,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) },
   });
 
-  if (res.status === 403) {
+  if (res.status === 401) {
     // The server was restarted and its token rotated; one automatic reload
-    // picks up the fresh token embedded in the new page.
+    // picks up the fresh token embedded in the new page. 403s are action
+    // refusals (protected process, default branch) and must surface as errors.
     try {
       const last = Number(sessionStorage.getItem("dm-auth-reload") || "0");
       if (Date.now() - last > 10000) {

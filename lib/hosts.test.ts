@@ -47,10 +47,31 @@ describe("shellQuote", () => {
 });
 
 describe("buildElevationScript", () => {
-  it("writes, flushes, and signals mDNSResponder", () => {
-    const script = buildElevationScript("/tmp/hosts.tmp");
-    expect(script).toContain("cat '/tmp/hosts.tmp' > /etc/hosts");
+  const digest = "a".repeat(64);
+
+  it("stages into a root-owned temp file and verifies its digest before installing", () => {
+    const script = buildElevationScript("/tmp/hosts.tmp", digest);
+    const steps = script.split("; ");
+    const copy = steps.findIndex((s) => s.includes("/bin/cat '/tmp/hosts.tmp' > \"$t\""));
+    const verify = steps.findIndex((s) => s.includes(`shasum -a 256 < "$t"`) && s.includes(`'${digest}'`));
+    const install = steps.findIndex((s) => s.includes('/bin/mv -f "$t" /etc/hosts'));
+    expect(steps[0]).toBe("set -e");
+    expect(steps[1]).toContain("mktemp /etc/hosts.dockmaster.");
+    expect(copy).toBeGreaterThan(1);
+    expect(verify).toBeGreaterThan(copy);
+    expect(install).toBeGreaterThan(verify);
+    expect(script).not.toContain("cat '/tmp/hosts.tmp' > /etc/hosts");
+  });
+
+  it("restores world-readable permissions and flushes DNS after installing", () => {
+    const script = buildElevationScript("/tmp/hosts.tmp", digest);
+    expect(script).toContain('/bin/chmod 644 "$t"');
     expect(script).toContain("dscacheutil -flushcache");
     expect(script).toContain("killall -HUP mDNSResponder");
+  });
+
+  it("quotes the digest and path as shell literals", () => {
+    const script = buildElevationScript("/tmp/it's here.tmp", digest);
+    expect(script).toContain("'/tmp/it'\\''s here.tmp'");
   });
 });

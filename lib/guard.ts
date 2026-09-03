@@ -10,8 +10,10 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 // Origin check blocks cross-site fetches (the custom header already forces a
-// preflight that we never answer); the token is defense in depth. The Host
-// check lives in middleware.ts and covers DNS rebinding for every route.
+// preflight, which is answered without CORS headers); the token is defense in
+// depth. The Host check lives in middleware.ts and covers DNS rebinding for
+// every route. A bad token is 401 so the client can tell "server restarted,
+// reload for a fresh token" apart from the 403s the action guards return.
 export function guard(req: Request): Response | null {
   const host = (req.headers.get("host") || "").toLowerCase();
   const origin = req.headers.get("origin");
@@ -22,7 +24,7 @@ export function guard(req: Request): Response | null {
   if (!supplied || !safeEqual(supplied, getToken())) {
     return Response.json(
       { error: "Missing or invalid local request token." },
-      { status: 403 },
+      { status: 401 },
     );
   }
   return null;

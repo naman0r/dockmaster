@@ -80,8 +80,22 @@ export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-export function buildElevationScript(tempPath: string): string {
-  return `cat ${shellQuote(tempPath)} > /etc/hosts && dscacheutil -flushcache && killall -HUP mDNSResponder`;
+// The staged file sits in a user-writable directory, so root never trusts it
+// directly: it copies into a root-owned temp file, checks that copy's digest
+// against the content we hashed, and only then renames it into place.
+export function buildElevationScript(tempPath: string, sha256Hex: string): string {
+  const src = shellQuote(tempPath);
+  const expected = shellQuote(sha256Hex);
+  return [
+    "set -e",
+    "t=$(/usr/bin/mktemp /etc/hosts.dockmaster.XXXXXX)",
+    `/bin/cat ${src} > "$t"`,
+    `if [ "$(/usr/bin/shasum -a 256 < "$t" | /usr/bin/cut -d' ' -f1)" != ${expected} ]; then /bin/rm -f "$t"; echo 'hosts content changed during apply' >&2; exit 1; fi`,
+    '/bin/chmod 644 "$t"',
+    '/bin/mv -f "$t" /etc/hosts',
+    "/usr/bin/dscacheutil -flushcache",
+    "/usr/bin/killall -HUP mDNSResponder",
+  ].join("; ");
 }
 
 function profilesFile(): string {
@@ -154,12 +168,13 @@ export async function applyProfile(profile: Profile): Promise<{ backupPath: stri
 
   const tempPath = path.join(dir, `hosts-apply-${Date.now()}.tmp`);
   await fs.writeFile(tempPath, profile.content);
+  const digest = crypto.createHash("sha256").update(profile.content).digest("hex");
   try {
     await exec(
       [
         "/usr/bin/osascript",
         "-e",
-        `do shell script ${JSON.stringify(buildElevationScript(tempPath))} with administrator privileges with prompt "Dockmaster wants to update /etc/hosts"`,
+        `do shell script ${JSON.stringify(buildElevationScript(tempPath, digest))} with administrator privileges with prompt "Dockmaster wants to update /etc/hosts"`,
       ],
       { timeoutMs: 120_000 },
     );
