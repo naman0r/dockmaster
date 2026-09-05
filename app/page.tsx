@@ -22,6 +22,12 @@ type ModuleCard = {
   metric: (snap: SnapshotLite) => Metric;
 };
 
+// ps reports an absolute path, often with a trailing version, e.g.
+// "/Applications/Google Chrome.app/Contents/MacOS/next-server (v15.5.25)".
+function processName(command: string): string {
+  return (command.split("/").pop() || command).replace(/\s*\([^)]*\)$/, "");
+}
+
 function countOf(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
 }
@@ -88,7 +94,7 @@ const MODULES: ModuleCard[] = [
       const repos = (s.data as { repos?: Array<{ dirty: number; ahead: number }> } | null)?.repos || [];
       const dirty = repos.filter((r) => r.dirty > 0).length;
       const ahead = repos.filter((r) => r.ahead > 0).length;
-      return { value: String(repos.length), label: `${dirty} dirty · ${ahead} unpushed` };
+      return { value: String(dirty || repos.length), label: dirty ? `dirty of ${repos.length}` : `${ahead} unpushed` };
     },
   },
   {
@@ -125,7 +131,10 @@ const MODULES: ModuleCard[] = [
     endpoint: "/api/hosts",
     metric: (s) => {
       const data = s.data as { entries?: unknown[]; activeProfile?: string | null } | null;
-      return { value: String(countOf(data?.entries)), label: data?.activeProfile || "entries" };
+      return {
+        value: String(countOf(data?.entries)),
+        label: data?.activeProfile ? `${data.activeProfile} profile` : "entries",
+      };
     },
   },
   {
@@ -137,7 +146,7 @@ const MODULES: ModuleCard[] = [
     metric: (s) => {
       const top = (s.data as { sample?: Array<{ command: string; cpuPct: number }> } | null)?.sample?.[0];
       return top
-        ? { value: `${top.cpuPct.toFixed(0)}%`, label: top.command }
+        ? { value: `${top.cpuPct.toFixed(0)}%`, label: processName(top.command) }
         : { value: "—", label: "sampling" };
     },
   },
@@ -222,21 +231,12 @@ export default function OverviewPage() {
         eyebrow="Local berth monitor"
         title="The harbor at a glance"
         description="Everything Dockmaster knows right now. Modules only scan while a page is open, and each can be switched off from its own page."
-        right={
-          <span className="flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet">
-            <span
-              aria-hidden="true"
-              className={`size-1.5 animate-breathe rounded-full ${error ? "bg-alarm" : "bg-ok"}`}
-            />
-            live · 5s
-          </span>
-        }
       />
       <ErrorNote message={error} />
-      <div className="card-surface mb-3.5 flex flex-wrap divide-x divide-line overflow-hidden rounded-[14px] border border-line">
+      <div className="mb-3.5 flex flex-wrap overflow-hidden rounded-[14px] border border-line">
         {vitals ? (
           vitalCells(vitals).map((c) => (
-            <div key={c.label} className="flex min-w-[132px] grow flex-col gap-[7px] px-5 py-3">
+            <div key={c.label} className="flex grow basis-[148px] flex-col gap-[7px] -ml-px -mt-px border-l border-t border-line bg-surface px-5 py-3">
               <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet">
                 {c.label}
               </span>
@@ -246,35 +246,47 @@ export default function OverviewPage() {
             </div>
           ))
         ) : (
-          <span className="px-5 py-[22px] font-mono text-[11px] text-quiet">reading system…</span>
+          <span className="grow bg-surface px-5 py-[22px] font-mono text-[11px] text-quiet">reading system…</span>
         )}
+        <div className="flex grow basis-[148px] flex-col gap-[7px] -ml-px -mt-px border-l border-t border-line bg-surface px-5 py-3">
+          <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet">
+            polling
+          </span>
+          <span className="flex items-center gap-2 font-mono text-[13px] text-ink">
+            <span
+              aria-hidden="true"
+              className={`size-1.5 animate-breathe rounded-full ${error ? "bg-alarm" : "bg-ok"}`}
+            />
+            every 5s
+          </span>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-3.5 max-[900px]:grid-cols-1">
+      <div className="grid grid-cols-3 gap-3.5 max-[1280px]:grid-cols-2 max-[900px]:grid-cols-1">
         {MODULES.map((m) => {
           const b = berth(m, snaps[m.href]);
           return (
             <a
               key={m.href}
               href={m.href}
-              className={`card-surface group relative grid min-h-[118px] grid-cols-[150px_minmax(0,1fr)] overflow-hidden rounded-[14px] border border-line no-underline transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[420px]:grid-cols-[112px_minmax(0,1fr)]${
+              className={`card-surface group relative grid min-h-[112px] grid-cols-[124px_minmax(0,1fr)] overflow-hidden rounded-[14px] border border-line no-underline transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[420px]:grid-cols-[104px_minmax(0,1fr)]${
                 b.tone === "alarm"
                   ? " after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
                   : ""
               }`}
             >
-              <div className="berth-bg flex flex-col justify-center gap-2 border-r border-line px-5 py-[18px]">
+              <div className="berth-bg flex min-w-0 flex-col justify-center gap-2 border-r border-line px-4 py-[18px]">
                 <div
-                  className={`font-mono text-[clamp(26px,3vw,32px)] leading-none tracking-[-0.07em] ${
+                  className={`font-mono text-[clamp(24px,2.6vw,30px)] leading-none tracking-[-0.07em] ${
                     b.pending ? "animate-breathe text-quiet" : b.tone ? VALUE_TONE[b.tone] : "text-ink"
                   }`}
                 >
                   {b.value}
                 </div>
-                <div className="font-mono text-[9px] font-semibold uppercase leading-[1.45] tracking-[0.12em] text-quiet">
+                <div className="truncate font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet">
                   {b.label}
                 </div>
               </div>
-              <div className="flex min-w-0 flex-col justify-center px-[22px] py-[18px] max-[420px]:px-4">
+              <div className="flex min-w-0 flex-col justify-center px-[18px] py-[18px] max-[420px]:px-4">
                 <div className="mb-1.5 flex items-baseline justify-between gap-3">
                   <h3 className="truncate text-[15px] text-ink">{m.title}</h3>
                   <span
@@ -284,7 +296,7 @@ export default function OverviewPage() {
                     {m.glyph}
                   </span>
                 </div>
-                <p className="line-clamp-2 text-[11.5px] leading-[1.5] text-muted">{m.description}</p>
+                <p className="line-clamp-2 text-[11px] leading-[1.5] text-muted">{m.description}</p>
               </div>
             </a>
           );

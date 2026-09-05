@@ -37,7 +37,7 @@ export function Nav() {
           className="mark-glow flex-none rounded-[11px] ring-1 ring-line-bright transition-[box-shadow] group-hover:ring-accent/45"
         />
         <span>
-          <span className="eyebrow block mb-[3px]">Local dev console</span>
+          <span className="eyebrow block mb-[3px]">Local console</span>
           <span className="block text-[17px] font-[650] tracking-[-0.03em] text-ink">Dockmaster</span>
         </span>
       </Link>
