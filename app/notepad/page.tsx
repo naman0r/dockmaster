@@ -33,7 +33,10 @@ function formatWhen(iso: string): string {
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
-  return new Date(then).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(then).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export default function NotepadPage() {
@@ -118,14 +121,19 @@ export default function NotepadPage() {
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void add();
           }}
-          placeholder="e.g. found revdiff — good diff tool, already installed…"
+          placeholder="note down something you found, a command you'll forget, or an idea between tasks"
           spellCheck={false}
         />
         <div className="mt-2.5 flex items-center justify-between">
           <span className="font-mono text-[10px] tracking-[0.08em] text-quiet">
             {draft.length > 0 ? `${draft.length} chars` : "⌘⏎ to save"}
           </span>
-          <Button variant="stop" busy={busy} disabled={!draft.trim()} onClick={add}>
+          <Button
+            variant="stop"
+            busy={busy}
+            disabled={!draft.trim()}
+            onClick={add}
+          >
             Add note
           </Button>
         </div>
@@ -164,14 +172,18 @@ export default function NotepadPage() {
                       value={editDraft}
                       onChange={(e) => setEditDraft(e.target.value)}
                       onKeyDown={(e) => {
-                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void saveEdit(note.id);
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter")
+                          void saveEdit(note.id);
                         if (e.key === "Escape") setEditingId(null);
                       }}
                       autoFocus
                       spellCheck={false}
                     />
                     <div className="mt-2.5 flex justify-end gap-2">
-                      <Button variant="ghost" onClick={() => setEditingId(null)}>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setEditingId(null)}
+                      >
                         Cancel
                       </Button>
                       <Button variant="stop" onClick={() => saveEdit(note.id)}>
@@ -187,7 +199,9 @@ export default function NotepadPage() {
                     <div className="mt-2 flex items-center justify-between">
                       <span className="font-mono text-[10px] tracking-[0.06em] text-quiet">
                         {formatWhen(note.createdAt)}
-                        {edited ? ` · edited ${formatWhen(note.updatedAt)}` : ""}
+                        {edited
+                          ? ` · edited ${formatWhen(note.updatedAt)}`
+                          : ""}
                       </span>
                       <span className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                         <Button

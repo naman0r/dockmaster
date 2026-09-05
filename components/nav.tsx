@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS: Array<{ href: string; glyph: string; label: string }> = [
-  { href: "/", glyph: "DM", label: "Harbor" },
+  { href: "/", glyph: "HB", label: "Harbor" },
   { href: "/ports", glyph: "PT", label: "Ports" },
   { href: "/repos", glyph: "RP", label: "Repos" },
   { href: "/worktrees", glyph: "WT", label: "Worktrees" },
@@ -25,18 +25,22 @@ export function Nav() {
   const pathname = usePathname();
   return (
     <aside className="sticky top-0 flex h-screen flex-col gap-[26px] border-r border-line bg-[#070b14]/60 px-[18px] pb-5 pt-[26px] backdrop-blur-md max-[900px]:static max-[900px]:h-auto max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-4 max-[900px]:border-b max-[900px]:border-r-0 max-[900px]:px-4 max-[900px]:py-4">
-      <div className="flex items-center gap-3 px-1.5">
-        <div
-          aria-hidden="true"
-          className="mark-glow relative grid size-[42px] flex-none place-items-center rounded-[11px] border border-line-bright bg-gradient-to-br from-accent/[0.09] to-transparent font-mono text-[13px] font-bold tracking-[-0.08em] text-accent after:absolute after:-bottom-[3px] after:-right-[3px] after:size-[7px] after:rounded-full after:bg-accent after:shadow-[0_0_14px_rgba(104,169,255,0.7)] after:ring-2 after:ring-[#070b14]"
-        >
-          DM
-        </div>
-        <div>
-          <p className="eyebrow mb-[3px]">Local dev console</p>
-          <h1 className="text-[17px]">Dockmaster</h1>
-        </div>
-      </div>
+      <Link
+        href="/"
+        className="group flex items-center gap-3 rounded-lg px-1.5 py-1 no-underline transition-colors hover:bg-accent/5"
+      >
+        <img
+          src="/icon.svg"
+          alt=""
+          width={42}
+          height={42}
+          className="mark-glow flex-none rounded-[11px] ring-1 ring-line-bright transition-[box-shadow] group-hover:ring-accent/45"
+        />
+        <span>
+          <span className="eyebrow block mb-[3px]">Local dev console</span>
+          <span className="block text-[17px] font-[650] tracking-[-0.03em] text-ink">Dockmaster</span>
+        </span>
+      </Link>
       <nav className="flex flex-col gap-[3px] max-[900px]:flex-row max-[900px]:flex-wrap" aria-label="Modules">
         {ITEMS.map((item) => (
           <Link

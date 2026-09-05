@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { apiGet } from "@/lib/client/api";
 import { usePoll } from "@/components/hooks";
-import { Card, ErrorNote, PageHeader } from "@/components/ui";
+import { ErrorNote, PageHeader } from "@/components/ui";
 
 type SnapshotLite = {
   enabled: boolean;
@@ -11,13 +11,15 @@ type SnapshotLite = {
   data: unknown;
 };
 
+type Metric = { value: string; label: string; tone?: "alarm" | "ok" };
+
 type ModuleCard = {
   href: string;
   glyph: string;
   title: string;
   description: string;
   endpoint: string;
-  describe: (snap: SnapshotLite) => string;
+  metric: (snap: SnapshotLite) => Metric;
 };
 
 function countOf(value: unknown): number {
@@ -46,13 +48,22 @@ function formatGb(kb: number): string {
   return gb >= 10 ? `${gb.toFixed(0)} GB` : `${gb.toFixed(1)} GB`;
 }
 
-function VitalsChip({ label, value, alarm }: { label: string; value: string; alarm?: boolean }) {
-  return (
-    <span className="whitespace-nowrap">
-      <span className="text-quiet">{label} </span>
-      <span className={alarm ? "text-alarm" : "text-muted"}>{value}</span>
-    </span>
-  );
+function vitalCells(v: Vitals): Array<{ label: string; value: string; alarm?: boolean }> {
+  return [
+    { label: "uptime", value: formatUptime(v.uptimeSeconds) },
+    v.loadAvg && { label: "load", value: v.loadAvg.map((n) => n.toFixed(2)).join("  ") },
+    v.memFreePct !== null && { label: "mem free", value: `${v.memFreePct}%` },
+    v.disk && {
+      label: "disk",
+      value: `${formatGb(v.disk.freeKb)} of ${formatGb(v.disk.totalKb)}`,
+      alarm: v.disk.usedPct >= 90,
+    },
+    v.battery && {
+      label: "battery",
+      value: `${v.battery.pct}% ${v.battery.status}`,
+      alarm: v.battery.status === "discharging" && v.battery.pct < 20,
+    },
+  ].filter(Boolean) as Array<{ label: string; value: string; alarm?: boolean }>;
 }
 
 const MODULES: ModuleCard[] = [
@@ -62,9 +73,9 @@ const MODULES: ModuleCard[] = [
     title: "Ports",
     description: "Every listening dev server, with a guarded stop button.",
     endpoint: "/api/ports",
-    describe: (s) => {
-      const services = (s.data as { services?: unknown[] } | null)?.services;
-      return `${countOf(services)} listeners`;
+    metric: (s) => {
+      const n = countOf((s.data as { services?: unknown[] } | null)?.services);
+      return { value: String(n), label: n === 1 ? "listener" : "listeners" };
     },
   },
   {
@@ -73,11 +84,11 @@ const MODULES: ModuleCard[] = [
     title: "Repos",
     description: "What every repository under your dev root is up to.",
     endpoint: "/api/repos",
-    describe: (s) => {
+    metric: (s) => {
       const repos = (s.data as { repos?: Array<{ dirty: number; ahead: number }> } | null)?.repos || [];
       const dirty = repos.filter((r) => r.dirty > 0).length;
       const ahead = repos.filter((r) => r.ahead > 0).length;
-      return `${repos.length} repos · ${dirty} dirty · ${ahead} unpushed`;
+      return { value: String(repos.length), label: `${dirty} dirty · ${ahead} unpushed` };
     },
   },
   {
@@ -86,10 +97,10 @@ const MODULES: ModuleCard[] = [
     title: "Worktrees",
     description: "Linked worktrees, pruneables, and stale branches.",
     endpoint: "/api/worktrees",
-    describe: (s) => {
+    metric: (s) => {
       const data = s.data as { repos?: Array<{ worktrees: unknown[] }> } | null;
       const total = (data?.repos || []).reduce((acc, r) => acc + countOf(r.worktrees), 0);
-      return `${total} worktrees`;
+      return { value: String(total), label: total === 1 ? "worktree" : "worktrees" };
     },
   },
   {
@@ -98,10 +109,12 @@ const MODULES: ModuleCard[] = [
     title: "Health",
     description: "Is it up? Localhost services and anything else you care about.",
     endpoint: "/api/health",
-    describe: (s) => {
+    metric: (s) => {
       const checks = (s.data as { checks?: Array<{ lastOk: boolean | null }> } | null)?.checks || [];
       const down = checks.filter((c) => c.lastOk === false).length;
-      return down ? `${down} of ${checks.length} down` : `${checks.length} checks green`;
+      return down
+        ? { value: String(down), label: `of ${checks.length} down`, tone: "alarm" }
+        : { value: String(checks.length), label: "checks green", tone: "ok" };
     },
   },
   {
@@ -110,9 +123,9 @@ const MODULES: ModuleCard[] = [
     title: "Hosts",
     description: "/etc/hosts with profiles, applied through a system prompt.",
     endpoint: "/api/hosts",
-    describe: (s) => {
+    metric: (s) => {
       const data = s.data as { entries?: unknown[]; activeProfile?: string | null } | null;
-      return `${countOf(data?.entries)} entries${data?.activeProfile ? ` · ${data.activeProfile}` : ""}`;
+      return { value: String(countOf(data?.entries)), label: data?.activeProfile || "entries" };
     },
   },
   {
@@ -121,9 +134,11 @@ const MODULES: ModuleCard[] = [
     title: "Processes",
     description: "CPU and memory hogs, sampled live.",
     endpoint: "/api/processes",
-    describe: (s) => {
+    metric: (s) => {
       const top = (s.data as { sample?: Array<{ command: string; cpuPct: number }> } | null)?.sample?.[0];
-      return top ? `${top.command} at ${top.cpuPct.toFixed(0)}% cpu` : "sampling…";
+      return top
+        ? { value: `${top.cpuPct.toFixed(0)}%`, label: top.command }
+        : { value: "—", label: "sampling" };
     },
   },
   {
@@ -132,10 +147,11 @@ const MODULES: ModuleCard[] = [
     title: "Secrets",
     description: "Committed .env files and credential-shaped strings across repos.",
     endpoint: "/api/secrets",
-    describe: (s) => {
-      const findings = (s.data as { findings?: unknown[] } | null)?.findings;
-      const n = countOf(findings);
-      return n ? `${n} findings` : "no findings";
+    metric: (s) => {
+      const n = countOf((s.data as { findings?: unknown[] } | null)?.findings);
+      return n
+        ? { value: String(n), label: n === 1 ? "finding" : "findings", tone: "alarm" }
+        : { value: "0", label: "findings", tone: "ok" };
     },
   },
   {
@@ -144,11 +160,11 @@ const MODULES: ModuleCard[] = [
     title: "Logbook",
     description: "Which project had you, sampled from the frontmost app.",
     endpoint: "/api/logbook",
-    describe: (s) => {
+    metric: (s) => {
       const data = s.data as { today?: Array<{ project: string; minutes: number }>; sessionActive?: boolean } | null;
       const top = data?.today?.[0];
-      if (!top) return data?.sessionActive ? "recording…" : "no entries today";
-      return `${top.project} · ${top.minutes}m today`;
+      if (!top) return { value: "—", label: data?.sessionActive ? "recording" : "nothing today" };
+      return { value: `${top.minutes}m`, label: top.project };
     },
   },
   {
@@ -157,12 +173,21 @@ const MODULES: ModuleCard[] = [
     title: "Notepad",
     description: "Local scratch pad for dev notes and tools worth remembering.",
     endpoint: "/api/notes",
-    describe: (s) => {
+    metric: (s) => {
       const n = countOf((s.data as { notes?: unknown[] } | null)?.notes);
-      return n === 1 ? "1 note" : `${n} notes`;
+      return { value: String(n), label: n === 1 ? "note" : "notes" };
     },
   },
 ];
+
+function berth(m: ModuleCard, snap: SnapshotLite | null | undefined): Metric & { pending?: boolean } {
+  if (snap === undefined) return { value: "··", label: "reading", pending: true };
+  if (snap === null) return { value: "!", label: "unreachable", tone: "alarm" };
+  if (!snap.enabled) return { value: "—", label: "module off" };
+  return m.metric(snap);
+}
+
+const VALUE_TONE = { alarm: "text-alarm", ok: "text-ok" } as const;
 
 export default function OverviewPage() {
   const [snaps, setSnaps] = useState<Record<string, SnapshotLite | null>>({});
@@ -197,67 +222,71 @@ export default function OverviewPage() {
         eyebrow="Local berth monitor"
         title="The harbor at a glance"
         description="Everything Dockmaster knows right now. Modules only scan while a page is open, and each can be switched off from its own page."
+        right={
+          <span className="flex items-center gap-2 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet">
+            <span
+              aria-hidden="true"
+              className={`size-1.5 animate-breathe rounded-full ${error ? "bg-alarm" : "bg-ok"}`}
+            />
+            live · 5s
+          </span>
+        }
       />
       <ErrorNote message={error} />
-      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-line bg-surface/55 px-4 py-2.5 font-mono text-[11px]">
+      <div className="card-surface mb-3.5 flex flex-wrap divide-x divide-line overflow-hidden rounded-[14px] border border-line">
         {vitals ? (
-          <>
-            <VitalsChip label="up" value={formatUptime(vitals.uptimeSeconds)} />
-            {vitals.loadAvg ? (
-              <VitalsChip label="load" value={vitals.loadAvg.map((n) => n.toFixed(2)).join(" ")} />
-            ) : null}
-            {vitals.memFreePct !== null ? (
-              <VitalsChip label="mem free" value={`${vitals.memFreePct}%`} />
-            ) : null}
-            {vitals.disk ? (
-              <VitalsChip
-                label="disk"
-                value={`${formatGb(vitals.disk.freeKb)} free of ${formatGb(vitals.disk.totalKb)}`}
-                alarm={vitals.disk.usedPct >= 90}
-              />
-            ) : null}
-            {vitals.battery ? (
-              <VitalsChip
-                label="batt"
-                value={`${vitals.battery.pct}% ${vitals.battery.status}`}
-                alarm={vitals.battery.status === "discharging" && vitals.battery.pct < 20}
-              />
-            ) : null}
-          </>
+          vitalCells(vitals).map((c) => (
+            <div key={c.label} className="flex min-w-[132px] grow flex-col gap-[7px] px-5 py-3">
+              <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet">
+                {c.label}
+              </span>
+              <span className={`font-mono text-[13px] ${c.alarm ? "text-alarm" : "text-ink"}`}>
+                {c.value}
+              </span>
+            </div>
+          ))
         ) : (
-          <span className="text-quiet">reading system…</span>
+          <span className="px-5 py-[22px] font-mono text-[11px] text-quiet">reading system…</span>
         )}
       </div>
-      <div className="grid gap-3.5 grid-cols-2 max-[560px]:grid-cols-1">
+      <div className="grid grid-cols-2 gap-3.5 max-[900px]:grid-cols-1">
         {MODULES.map((m) => {
-          const snap = snaps[m.href];
+          const b = berth(m, snaps[m.href]);
           return (
-            <Card key={m.href} className="p-[22px_24px]">
-              <div className="mb-3.5 flex items-start gap-[13px]">
-                <span className="grid size-9 flex-none place-items-center rounded-[9px] border border-line-bright bg-accent/10 font-mono text-[11px] font-bold leading-none text-accent">
-                  {m.glyph}
-                </span>
-                <div>
-                  <h3 className="mt-0.5 mb-[5px] text-[15px]">{m.title}</h3>
-                  <p className="text-[11.5px] leading-[1.5] text-muted truncate">{m.description}</p>
+            <a
+              key={m.href}
+              href={m.href}
+              className={`card-surface group relative grid min-h-[118px] grid-cols-[150px_minmax(0,1fr)] overflow-hidden rounded-[14px] border border-line no-underline transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[420px]:grid-cols-[112px_minmax(0,1fr)]${
+                b.tone === "alarm"
+                  ? " after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
+                  : ""
+              }`}
+            >
+              <div className="berth-bg flex flex-col justify-center gap-2 border-r border-line px-5 py-[18px]">
+                <div
+                  className={`font-mono text-[clamp(26px,3vw,32px)] leading-none tracking-[-0.07em] ${
+                    b.pending ? "animate-breathe text-quiet" : b.tone ? VALUE_TONE[b.tone] : "text-ink"
+                  }`}
+                >
+                  {b.value}
+                </div>
+                <div className="font-mono text-[9px] font-semibold uppercase leading-[1.45] tracking-[0.12em] text-quiet">
+                  {b.label}
                 </div>
               </div>
-              <p className="mb-3.5 min-h-[34px] text-[12px] tracking-[0.02em] text-muted">
-                {snap === undefined
-                  ? "…"
-                  : snap === null
-                    ? "unreachable"
-                    : snap.enabled
-                      ? m.describe(snap)
-                      : "module off"}
-              </p>
-              <a
-                className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline transition-colors border-accent/30 text-accent hover:border-accent hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                href={m.href}
-              >
-                Open
-              </a>
-            </Card>
+              <div className="flex min-w-0 flex-col justify-center px-[22px] py-[18px] max-[420px]:px-4">
+                <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                  <h3 className="truncate text-[15px] text-ink">{m.title}</h3>
+                  <span
+                    aria-hidden="true"
+                    className="flex-none font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet transition-colors group-hover:text-accent"
+                  >
+                    {m.glyph}
+                  </span>
+                </div>
+                <p className="line-clamp-2 text-[11.5px] leading-[1.5] text-muted">{m.description}</p>
+              </div>
+            </a>
           );
         })}
       </div>
