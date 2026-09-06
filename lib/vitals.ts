@@ -1,9 +1,13 @@
+import os from "os";
+
 import { exec } from "@/lib/exec";
 import { TtlCache } from "@/lib/cache";
 
 export type Vitals = {
   uptimeSeconds: number;
   loadAvg: [number, number, number] | null;
+  // Load average only means anything next to the core count it competes for.
+  cores: number;
   memFreePct: number | null;
   disk: { freeKb: number; totalKb: number; usedPct: number } | null;
   battery: { pct: number; source: string; status: string } | null;
@@ -69,6 +73,7 @@ async function sample(): Promise<Vitals> {
   return {
     uptimeSeconds: bootSec ? Math.max(0, Date.now() / 1000 - bootSec) : 0,
     loadAvg: unwrap(loadavg, parseLoadAvg),
+    cores: os.cpus().length,
     memFreePct: unwrap(memOut, parseMemoryPressure),
     disk: unwrap(dfOut, parseDf),
     battery: unwrap(battOut, parseBattery),

@@ -35,6 +35,7 @@ function countOf(value: unknown): number {
 type Vitals = {
   uptimeSeconds: number;
   loadAvg: [number, number, number] | null;
+  cores: number;
   memFreePct: number | null;
   disk: { freeKb: number; totalKb: number; usedPct: number } | null;
   battery: { pct: number; source: string; status: string } | null;
@@ -57,7 +58,11 @@ function formatGb(kb: number): string {
 function vitalCells(v: Vitals): Array<{ label: string; value: string; alarm?: boolean }> {
   return [
     { label: "uptime", value: formatUptime(v.uptimeSeconds) },
-    v.loadAvg && { label: "load", value: v.loadAvg.map((n) => n.toFixed(2)).join("  ") },
+    v.loadAvg && {
+      label: "load, 1 min",
+      value: `${v.loadAvg[0].toFixed(2)} of ${v.cores} cores`,
+      alarm: v.loadAvg[0] >= v.cores,
+    },
     v.memFreePct !== null && { label: "mem free", value: `${v.memFreePct}%` },
     v.disk && {
       label: "disk",
