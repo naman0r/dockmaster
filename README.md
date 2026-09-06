@@ -6,7 +6,7 @@ Dockmaster grew out of [Port Authority](legacy/port_authority.py) — the single
 dashboard now lives in `legacy/` for reference. The idea scaled: a dev tool should know
 what's on your machine, and it should be able to _safely_ act on it.
 
-<img width="400" alt="overview" src="https://github.com/user-attachments/assets/6f99f6d1-4071-4bdf-90b9-b952337ccc30" />
+**view images at the end of the README**
 
 ## Modules
 
@@ -102,3 +102,17 @@ npm test        # vitest — parsers and safety guards
 ```
 
 Contributions are welcome!
+
+
+---
+
+<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/a0c42229-0ad2-44f6-b1bd-9713754bf310" />
+<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/88d9587a-7806-4fb5-8a2b-bb804c6aabb0" />
+<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/73c56770-3be1-4884-bc31-29d401de5856" />
+<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/1bc4ca55-df81-48b1-adf1-bfed1655c3be" />
+<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/ad8766ca-d574-4a3b-9667-94d7a2aaf3d7" />
+<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/f0dd5e06-2556-4e9c-927b-06ed31a2304c" />
+<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/924d9aa4-3467-45ec-94d7-1de1d12da456" />
+
+
+
