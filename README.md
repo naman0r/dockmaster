@@ -25,6 +25,14 @@ what's on your machine, and it should be able to _safely_ act on it.
 
 Every scanning module can be switched off from its own page (persisted in `~/.dockmaster/settings.json`).
 
+## Quick navigation
+
+Press **⌘K** (or **Ctrl+K**) anywhere, or click **Search anything** in the sidebar.
+Jump to a module, or search project names, branches, paths, ports, commands, and
+note text. Use **↑ / ↓** and **Enter** to open a result; **Esc** closes the palette.
+Project, port, and note results jump to and highlight their matching row.
+Search data loads only when the palette opens and respects disabled modules.
+
 ## Resource discipline
 
 Nothing scans unless someone is looking:

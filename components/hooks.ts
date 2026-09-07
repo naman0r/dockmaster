@@ -31,3 +31,49 @@ export function usePoll(
     };
   }, [intervalMs, enabled]);
 }
+
+// Hash targets may arrive before async scan results have rendered.
+export function usePaletteTarget(data: unknown, reveal?: () => void): void {
+  const revealRef = useRef(reveal);
+  revealRef.current = reveal;
+  const pending = useRef("");
+
+  useEffect(() => {
+    const scroll = () => {
+      if (!pending.current) return;
+      const target = document.getElementById(pending.current);
+      if (!target) return;
+      target.scrollIntoView({ block: "center" });
+      target.focus({ preventScroll: true });
+      pending.current = "";
+    };
+    const navigate = (event?: Event) => {
+      const href = event instanceof CustomEvent ? String(event.detail) : window.location.href;
+      const url = new URL(href, window.location.href);
+      if (url.pathname !== window.location.pathname || !url.hash) return;
+      try { pending.current = decodeURIComponent(url.hash.slice(1)); } catch { return; }
+      revealRef.current?.();
+      // Wait for filters to clear and for modal focus restoration to finish.
+      frame = requestAnimationFrame(scroll);
+    };
+    let frame = 0;
+    navigate();
+    window.addEventListener("hashchange", navigate);
+    window.addEventListener("dockmaster:navigate", navigate);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", navigate);
+      window.removeEventListener("dockmaster:navigate", navigate);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pending.current) return;
+    const target = document.getElementById(pending.current);
+    if (target) {
+      target.scrollIntoView({ block: "center" });
+      target.focus({ preventScroll: true });
+      pending.current = "";
+    }
+  }, [data]);
+}

@@ -1,8 +1,10 @@
 "use client";
 
+import { targetId } from "@/lib/command-palette";
+
 import { useCallback, useMemo, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client/api";
-import { usePoll } from "@/components/hooks";
+import { usePoll, usePaletteTarget } from "@/components/hooks";
 import {
   Badge,
   Button,
@@ -55,6 +57,7 @@ export default function ReposPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [enabled, setEnabled] = useState(true);
   const toast = useToast();
+  usePaletteTarget(snap, () => setQuery(""));
 
   const refresh = useCallback(async () => {
     try {
@@ -149,6 +152,8 @@ export default function ReposPage() {
           {repos.map((r) => (
             <div
               key={r.path}
+              id={targetId("repo", r.path)}
+              tabIndex={-1}
               className="grid card-surface grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
             >
               <div className="min-w-0 truncate">

@@ -1,8 +1,10 @@
 "use client";
 
+import { targetId } from "@/lib/command-palette";
+
 import { useCallback, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiPost } from "@/lib/client/api";
-import { usePoll } from "@/components/hooks";
+import { usePoll, usePaletteTarget } from "@/components/hooks";
 import {
   Button,
   EmptyState,
@@ -47,6 +49,7 @@ export default function NotepadPage() {
   const [editDraft, setEditDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  usePaletteTarget(snap);
 
   const refresh = useCallback(async () => {
     try {
@@ -162,6 +165,8 @@ export default function NotepadPage() {
             return (
               <article
                 key={note.id}
+                id={targetId("note", note.id)}
+                tabIndex={-1}
                 className="card-surface group rounded-xl border border-line px-4 py-3.5 transition-colors hover:border-line-bright"
               >
                 {editing ? (

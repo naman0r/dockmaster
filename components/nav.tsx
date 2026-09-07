@@ -3,18 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const ITEMS: Array<{ href: string; glyph: string; label: string }> = [
-  { href: "/", glyph: "HB", label: "Harbor" },
-  { href: "/ports", glyph: "PT", label: "Ports" },
-  { href: "/repos", glyph: "RP", label: "Repos" },
-  { href: "/worktrees", glyph: "WT", label: "Worktrees" },
-  { href: "/health", glyph: "HL", label: "Health" },
-  { href: "/hosts", glyph: "HS", label: "Hosts" },
-  { href: "/processes", glyph: "PC", label: "Processes" },
-  { href: "/secrets", glyph: "SC", label: "Secrets" },
-  { href: "/logbook", glyph: "LB", label: "Logbook" },
-  { href: "/notepad", glyph: "NP", label: "Notepad" },
-];
+import { MODULE_LINKS } from "@/lib/navigation";
+import { CommandPalette } from "@/components/command-palette";
 
 const LINK =
   "group flex items-center gap-[11px] rounded-lg px-2.5 py-2 font-mono text-xs font-medium uppercase tracking-[0.09em] no-underline transition-colors hover:bg-accent/5 hover:text-ink";
@@ -41,8 +31,9 @@ export function Nav() {
           <span className="block text-[17px] font-[650] tracking-[-0.03em] text-ink">Dockmaster</span>
         </span>
       </Link>
+      <CommandPalette />
       <nav className="flex flex-col gap-[3px] max-[900px]:flex-row max-[900px]:flex-wrap" aria-label="Modules">
-        {ITEMS.map((item) => (
+        {MODULE_LINKS.map((item) => (
           <Link
             key={item.href}
             href={item.href}

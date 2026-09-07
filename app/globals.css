@@ -115,3 +115,13 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Keep deep-linked search results visible and identifiable after loading. */
+[id^="repo-"], [id^="port-"], [id^="note-"] {
+  scroll-margin-block: 24px;
+}
+[id^="repo-"]:focus, [id^="port-"]:focus, [id^="note-"]:focus,
+[id^="repo-"]:target, [id^="port-"]:target, [id^="note-"]:target {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
