@@ -20,11 +20,11 @@ export function Nav() {
         className="group flex items-center gap-3 rounded-lg px-1.5 py-1 no-underline transition-colors hover:bg-accent/5"
       >
         <img
-          src="/icon.svg"
+          src="/icon.png"
           alt=""
           width={42}
           height={42}
-          className="mark-glow flex-none rounded-[11px] ring-1 ring-line-bright transition-[box-shadow] group-hover:ring-accent/45"
+          className="h-[42px] w-[42px] flex-none object-contain"
         />
         <span>
           <span className="eyebrow block mb-[3px]">Local console</span>
