@@ -35,6 +35,7 @@ export default function HealthPage() {
   const [error, setError] = useState("");
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
+  const [adding, setAdding] = useState(false);
   const [checking, setChecking] = useState(false);
   const [enabled, setEnabled] = useState(true);
   const toast = useToast();
@@ -63,6 +64,8 @@ export default function HealthPage() {
   }, [toast]);
 
   const add = useCallback(async () => {
+    if (adding) return;
+    setAdding(true);
     try {
       await apiPost("/api/health/checks", { label, url });
       setLabel("");
@@ -71,8 +74,10 @@ export default function HealthPage() {
       await refresh();
     } catch (err) {
       toast((err as Error).message, true);
+    } finally {
+      setAdding(false);
     }
-  }, [label, url, refresh, toast]);
+  }, [adding, label, url, refresh, toast]);
 
   const remove = useCallback(
     async (id: string) => {
@@ -120,23 +125,27 @@ export default function HealthPage() {
         </span>
       </div>
       <ErrorNote message={error} />
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <input
-          className="search-icon max-w-[200px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="label"
-        />
-        <input
-          className="search-icon max-w-[360px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="http://localhost:3000"
-        />
-        <Button variant="stop" onClick={add} disabled={!label || !url}>
-          Add
+      <form onSubmit={(event) => { event.preventDefault(); void add(); }} className="mb-5 grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] items-end gap-3 max-[650px]:grid-cols-1">
+        <label className="flex min-w-0 flex-col gap-2 text-xs text-muted">
+          Check name
+          <input
+            className="w-full min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] font-mono text-[13px] text-ink caret-accent outline-none placeholder:text-quiet focus:border-accent"
+            value={label} onChange={(e) => setLabel(e.target.value)}
+            placeholder="Local API" required maxLength={120} autoComplete="off"
+          />
+        </label>
+        <label className="flex min-w-0 flex-col gap-2 text-xs text-muted">
+          URL to check
+          <input
+            className="w-full min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] font-mono text-[13px] text-ink caret-accent outline-none placeholder:text-quiet focus:border-accent"
+            type="url" value={url} onChange={(e) => setUrl(e.target.value)}
+            placeholder="http://localhost:3000" required autoComplete="off" spellCheck={false}
+          />
+        </label>
+        <Button type="submit" variant="stop" busy={adding} disabled={!label.trim() || !url.trim()}>
+          {adding ? "Adding…" : "Add check"}
         </Button>
-      </div>
+      </form>
       {snap?.enabled === false ? (
         <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
       ) : checks.length === 0 ? (

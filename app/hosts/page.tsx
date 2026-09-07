@@ -136,7 +136,7 @@ export default function HostsPage() {
           <Card className="p-[22px_24px]">
             <div className={`flex flex-wrap items-center gap-3 ${data.profiles.length ? "mb-3.5" : "mb-0"}`}>
               <input
-                className="search-icon max-w-[260px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
+                className="max-w-[260px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
                 placeholder="new profile name"
