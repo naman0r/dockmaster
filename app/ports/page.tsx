@@ -1,8 +1,10 @@
 "use client";
 
+import { targetId } from "@/lib/command-palette";
+
 import { useCallback, useMemo, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client/api";
-import { usePoll } from "@/components/hooks";
+import { usePoll, usePaletteTarget } from "@/components/hooks";
 import {
   Badge,
   Button,
@@ -75,6 +77,7 @@ export default function PortsPage() {
   const [stopping, setStopping] = useState<Set<string>>(new Set());
   const [enabled, setEnabled] = useState(true);
   const toast = useToast();
+  usePaletteTarget(snap, () => { setQuery(""); setShowSystem(true); });
 
   const refresh = useCallback(async () => {
     try {
@@ -214,6 +217,8 @@ export default function PortsPage() {
             return (
               <article
                 key={key}
+                id={targetId("port", `${s.pid}:${s.port}`)}
+                tabIndex={-1}
                 className={`card-surface relative grid min-h-[132px] grid-cols-[164px_minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-line transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright max-[810px]:grid-cols-[126px_minmax(0,1fr)]${
                   s.isExposed
                     ? " after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"

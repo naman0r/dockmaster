@@ -1,0 +1,12 @@
+export const MODULE_LINKS = [
+  { href: "/", glyph: "HB", label: "Harbor", description: "Overview and system vitals" },
+  { href: "/ports", glyph: "PT", label: "Ports", description: "Listening servers and ports" },
+  { href: "/repos", glyph: "RP", label: "Repos", description: "Projects, repositories and git status" },
+  { href: "/worktrees", glyph: "WT", label: "Worktrees", description: "Linked worktrees and stale branches" },
+  { href: "/health", glyph: "HL", label: "Health", description: "Service health checks and latency" },
+  { href: "/hosts", glyph: "HS", label: "Hosts", description: "Local DNS and hosts profiles" },
+  { href: "/processes", glyph: "PC", label: "Processes", description: "CPU and memory usage" },
+  { href: "/secrets", glyph: "SC", label: "Secrets", description: "Credential findings and environment hygiene" },
+  { href: "/logbook", glyph: "LB", label: "Logbook", description: "Project activity and time tracking" },
+  { href: "/notepad", glyph: "NP", label: "Notepad", description: "Notes, snippets and ideas" },
+];
