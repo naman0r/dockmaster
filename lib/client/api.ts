@@ -21,7 +21,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
     cache: "no-store",
-    headers: { ...headers, ...(init?.headers as Record<string, string> | undefined) },
+    headers: {
+      ...headers,
+      ...(init?.headers as Record<string, string> | undefined),
+    },
   });
 
   if (res.status === 401) {
@@ -41,7 +44,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
   const payload = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) {
-    throw new ApiError(res.status, payload.error || `Request failed (${res.status})`);
+    throw new ApiError(
+      res.status,
+      payload.error || `Request failed (${res.status})`,
+    );
   }
   return payload as T;
 }
@@ -57,3 +63,5 @@ export function apiPost<T>(url: string, body: unknown): Promise<T> {
 export function apiDelete<T>(url: string): Promise<T> {
   return request<T>(url, { method: "DELETE" });
 }
+
+export { request as apiRequest };

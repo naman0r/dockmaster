@@ -26,6 +26,7 @@ export function MachineProvider({ children }: { children: ReactNode }) {
   const [machines, setMachines] = useState<Machine[]>([
     { id: "local", name: "This Mac" },
   ]);
+  const pathname = usePathname();
   const [ready, setReady] = useState(false);
   const [id, setId] = useState("local");
   const [error, setError] = useState("");
@@ -49,6 +50,15 @@ export function MachineProvider({ children }: { children: ReactNode }) {
       /* Selection still works when storage is unavailable. */
     }
   }, []);
+  useEffect(() => {
+    const requested = new URL(window.location.href).searchParams.get("machine");
+    if (requested && machines.some((m) => m.id === requested)) {
+      setId(requested);
+      try {
+        sessionStorage.setItem("dockmaster-machine", requested);
+      } catch {}
+    }
+  }, [pathname, machines]);
   const machine = machines.find((m) => m.id === id) || machines[0];
   return (
     <MachineContext.Provider
@@ -58,6 +68,9 @@ export function MachineProvider({ children }: { children: ReactNode }) {
         reload,
         select: (next) => {
           setId(next);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("machine");
+          window.history.replaceState(null, "", url);
           try {
             sessionStorage.setItem("dockmaster-machine", next);
           } catch {
@@ -99,18 +112,35 @@ export function MachineBoundary({ children }: { children: ReactNode }) {
     <section key={`${JSON.stringify(machine)}:${pathname}`}>
       {pathname !== "/settings" && (
         <p className="mb-4 font-mono text-xs text-muted">
-          Viewing {machine.name}
-          {remote ? " · Remote · Read-only" : " · Local"}
+          {pathname === "/notepad"
+            ? "Shared notebook"
+            : `Viewing ${machine.name}`}
+          {pathname === "/notepad"
+            ? " · stored on this Mac"
+            : remote
+              ? " · Remote"
+              : " · Local"}
         </p>
       )}
       {remote && pathname === "/" ? (
         <RemoteHarbor />
-      ) : remote && !["/ports", "/settings"].includes(pathname) ? (
+      ) : remote &&
+        ![
+          "/ports",
+          "/repos",
+          "/worktrees",
+          "/processes",
+          "/health",
+          "/hosts",
+          "/secrets",
+          "/settings",
+          "/notepad",
+        ].includes(pathname) ? (
         <div className="card-surface rounded-xl border border-line p-6">
           <h1 className="text-xl">This module is local-only</h1>
           <p className="mt-3 text-muted">
-            Select This Mac to use this module. Remote machines currently
-            support Ports and system vitals.
+            Select This Mac to use Logbook. It remains local-only and unchanged
+            by remote support.
           </p>
         </div>
       ) : (

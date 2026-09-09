@@ -1,25 +1,35 @@
+import { randomUUID } from "node:crypto";
+import { HttpError } from "@/lib/http";
 import { readMachines } from "./config";
 import { collect } from "./collector";
 import { SshConnection } from "./ssh";
 import { moduleEnabled } from "@/lib/settings";
-import type { MachineSnapshot, Operation, Result } from "./protocol";
+import {
+  actionSchema,
+  type Action,
+  type ReadOperation,
+  type MachineSnapshot,
+  type Operation,
+  type Result,
+} from "./protocol";
 export interface MachineBackend {
   request(op: Operation, force?: boolean): Promise<Result>;
 }
 const local: MachineBackend = { request: collect };
 // Share across Next route bundles and development reloads in this Node process.
 const state = globalThis as typeof globalThis & {
-  dockmasterMachines?: Map<
+  dockmasterMachinesV2?: Map<
     string,
     {
       key: string;
+      leases: Map<string, { token: string; session: string; at: number }>;
       connection: SshConnection;
       snapshots: Map<string, Result>;
       inflight: Map<string, Promise<Result>>;
     }
   >;
 };
-const pool = (state.dockmasterMachines ??= new Map());
+const pool = (state.dockmasterMachinesV2 ??= new Map());
 export function invalidateMachine(id: string) {
   pool.get(id)?.connection.close("Machine configuration changed.");
   pool.delete(id);
@@ -28,6 +38,7 @@ export async function backend(id: string) {
   if (id === "local")
     return {
       connection: local,
+      leases: new Map<string, { token: string; session: string; at: number }>(),
       snapshots: new Map<string, Result>(),
       inflight: new Map<string, Promise<Result>>(),
     };
@@ -36,10 +47,11 @@ export async function backend(id: string) {
     throw new Error("Unknown machine. Add it in Settings or select This Mac.");
   const key = JSON.stringify(machine);
   let entry = pool.get(id);
-  if (entry?.key !== key) {
+  if (entry?.key !== key || !(entry.connection instanceof SshConnection)) {
     invalidateMachine(id);
     entry = {
       key,
+      leases: new Map(),
       connection: new SshConnection(machine),
       snapshots: new Map(),
       inflight: new Map(),
@@ -50,7 +62,7 @@ export async function backend(id: string) {
 }
 export async function machineSnapshot(
   id: string,
-  op: "ports" | "vitals",
+  op: ReadOperation,
   force = false,
 ): Promise<MachineSnapshot<unknown>> {
   const base = {
@@ -60,7 +72,7 @@ export async function machineSnapshot(
     receivedAt: new Date().toISOString(),
     data: null,
   };
-  if (op === "ports" && !(await moduleEnabled("ports")))
+  if (op !== "vitals" && !(await moduleEnabled(op)))
     return { ...base, enabled: false, state: "disabled" };
   const entry = await backend(id);
   try {
@@ -71,14 +83,26 @@ export async function machineSnapshot(
     }
     const result = await task;
     entry.snapshots.set(op, result);
+    let lease: string | undefined;
+    if (
+      entry.connection instanceof SshConnection &&
+      entry.connection.currentSession
+    ) {
+      const session = entry.connection.currentSession;
+      const previous = entry.leases.get(op);
+      lease = previous?.session === session ? previous.token : randomUUID();
+      entry.leases.set(op, { token: lease, session, at: Date.now() });
+    }
     return {
       ...base,
       ...result,
       receivedAt: new Date().toISOString(),
       state: "ready",
+      lease,
     };
   } catch (e) {
     if (id === "local") throw e;
+    entry.leases.delete(op);
     const error = (e as Error).message;
     const previous = entry.snapshots.get(op);
     return {
@@ -94,5 +118,43 @@ export async function machineSnapshot(
     };
   } finally {
     entry.inflight.delete(op);
+  }
+}
+
+export async function authorizeAction(
+  id: string,
+  module: ReadOperation,
+  lease: string,
+) {
+  const entry = await backend(id);
+  const grant = entry.leases.get(module);
+  if (
+    !(entry.connection instanceof SshConnection) ||
+    !grant ||
+    grant.token !== lease ||
+    Date.now() - grant.at > 90000 ||
+    entry.connection.currentSession !== grant.session
+  )
+    throw new HttpError(
+      409,
+      "Snapshot is stale or disconnected. Refresh this machine before acting.",
+    );
+  return { entry, grant, connection: entry.connection };
+}
+export async function machineAction(id: string, raw: Action, lease: string) {
+  const action = actionSchema.parse(raw);
+  const module = action.action.split(".")[0] as ReadOperation;
+  const { entry, grant, connection } = await authorizeAction(id, module, lease);
+  entry.leases.delete(module); // consume before sending: ambiguous failures are never replayed
+  try {
+    const result = await connection.mutate(action, grant.session);
+    entry.snapshots.delete(module);
+    return { ...result.data, machineId: id };
+  } catch (e) {
+    if (e instanceof HttpError) throw e;
+    throw new HttpError(
+      502,
+      "Remote action outcome is unknown after connection failure. Refresh and inspect the target before deciding whether to retry.",
+    );
   }
 }

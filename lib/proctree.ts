@@ -1,3 +1,4 @@
+import { parseDetailOutput } from "./ports/scan";
 import { exec } from "./exec";
 import { GuardError } from "./http";
 
@@ -12,13 +13,21 @@ export async function readProcessTable(): Promise<Map<number, ProcRow>> {
     const parts = line.trim().split(/\s+/);
     if (parts.length !== 3) continue;
     const [pid, ppid, uid] = parts.map(Number);
-    if (!Number.isInteger(pid) || !Number.isInteger(ppid) || !Number.isInteger(uid)) continue;
+    if (
+      !Number.isInteger(pid) ||
+      !Number.isInteger(ppid) ||
+      !Number.isInteger(uid)
+    )
+      continue;
     table.set(pid, { pid, ppid, uid });
   }
   return table;
 }
 
-export function ancestorChain(pid: number, table: Map<number, ProcRow>): Set<number> {
+export function ancestorChain(
+  pid: number,
+  table: Map<number, ProcRow>,
+): Set<number> {
   const ancestors = new Set<number>([1, pid]);
   let cursor = pid;
   while (table.has(cursor)) {
@@ -35,7 +44,10 @@ export function ancestorChain(pid: number, table: Map<number, ProcRow>): Set<num
 
 // Deepest-first descendant order, target last. Pure so it can be tested
 // without a live process table.
-export function descendantOrder(pid: number, table: Map<number, ProcRow>): number[] {
+export function descendantOrder(
+  pid: number,
+  table: Map<number, ProcRow>,
+): number[] {
   const children = new Map<number, number[]>();
   for (const row of table.values()) {
     const list = children.get(row.ppid);
@@ -72,6 +84,7 @@ export function descendantOrder(pid: number, table: Map<number, ProcRow>): numbe
 export async function killProcessTree(
   pid: number,
   signal: "SIGTERM" | "SIGKILL",
+  expectedStartedAt?: string,
 ): Promise<{ signaled: number[] }> {
   if (!Number.isInteger(pid) || pid <= 1) {
     throw new GuardError("pid must be an integer greater than 1.", 400);
@@ -81,14 +94,18 @@ export async function killProcessTree(
 
   const selfAncestors = ancestorChain(process.pid, table);
   if (pid === process.pid || selfAncestors.has(pid)) {
-    throw new GuardError("Refusing to signal Dockmaster or its ancestor chain.");
+    throw new GuardError(
+      "Refusing to signal Dockmaster or its ancestor chain.",
+    );
   }
 
   const protectedPids = new Set<number>([process.pid, ...selfAncestors]);
   const order = descendantOrder(pid, table);
   for (const candidate of order) {
     if (candidate <= 1 || protectedPids.has(candidate)) {
-      throw new GuardError("Refusing to signal Dockmaster or its ancestor chain.");
+      throw new GuardError(
+        "Refusing to signal Dockmaster or its ancestor chain.",
+      );
     }
     const row = table.get(candidate);
     if (row && row.uid !== uid) {
@@ -96,10 +113,48 @@ export async function killProcessTree(
     }
   }
 
+  const identities = expectedStartedAt
+    ? parseDetailOutput(
+        await exec([PS, "-axo", "pid=,ppid=,uid=,lstart=,user=,command="]),
+      )
+    : null;
+  if (identities && identities.get(pid)?.startedAt !== expectedStartedAt)
+    throw new GuardError("Process identity changed before signaling.", 409);
+  if (identities && order.length > 64)
+    throw new GuardError(
+      "Process tree is too large for guarded remote termination.",
+      409,
+    );
   const signaled: number[] = [];
   for (const candidate of order) {
     const row = table.get(candidate);
     if (!row || row.uid !== uid) continue;
+    if (identities) {
+      const expected = identities.get(candidate);
+      const fresh = parseDetailOutput(
+        await exec(
+          [
+            PS,
+            "-o",
+            "pid=,ppid=,uid=,lstart=,user=,command=",
+            "-p",
+            String(candidate),
+          ],
+          { okReturnCodes: [0, 1] },
+        ),
+      ).get(candidate);
+      if (!fresh) continue;
+      if (
+        !expected ||
+        fresh.startedAt !== expected.startedAt ||
+        fresh.uid !== uid ||
+        fresh.ppid !== row.ppid
+      )
+        throw new GuardError(
+          "Process tree changed during termination; inspect the target before retrying.",
+          409,
+        );
+    }
     try {
       process.kill(candidate, signal);
       signaled.push(candidate);
@@ -107,7 +162,9 @@ export async function killProcessTree(
       const code = (err as NodeJS.ErrnoException).code;
       if (code === "ESRCH") continue;
       if (code === "EPERM") {
-        throw new GuardError(`Permission denied while signaling PID ${candidate}.`);
+        throw new GuardError(
+          `Permission denied while signaling PID ${candidate}.`,
+        );
       }
       throw err;
     }

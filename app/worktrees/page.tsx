@@ -2,7 +2,7 @@
 
 import { branchPullRequestsUrl } from "@/lib/git-links";
 import { useCallback, useMemo, useState } from "react";
-import { apiGet, apiPost } from "@/lib/client/api";
+import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
   Badge,
@@ -53,6 +53,7 @@ function formatRelative(iso: string): string {
 }
 
 export default function WorktreesPage() {
+  const { apiGet, apiPost, remote, machine, status } = useMachineApi();
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -72,7 +73,12 @@ export default function WorktreesPage() {
   usePoll(refresh, 30_000);
 
   const act = useCallback(
-    async (key: string, url: string, body: Record<string, unknown>, done: string) => {
+    async (
+      key: string,
+      url: string,
+      body: Record<string, unknown>,
+      done: string,
+    ) => {
       setBusy(key);
       try {
         await apiPost(url, body);
@@ -104,7 +110,13 @@ export default function WorktreesPage() {
   const repos = useMemo(() => {
     const list = snap?.data || [];
     const needle = query.trim().toLowerCase();
-    return needle ? list.filter((r) => `${r.name} ${r.path} ${r.worktrees.map((wt) => wt.branch).join(" ")} ${r.staleBranches.map((b) => b.name).join(" ")}`.toLowerCase().includes(needle)) : list;
+    return needle
+      ? list.filter((r) =>
+          `${r.name} ${r.path} ${r.worktrees.map((wt) => wt.branch).join(" ")} ${r.staleBranches.map((b) => b.name).join(" ")}`
+            .toLowerCase()
+            .includes(needle),
+        )
+      : list;
   }, [snap, query]);
 
   return (
@@ -113,23 +125,44 @@ export default function WorktreesPage() {
         eyebrow="Dry dock"
         title="Worktrees & stale branches"
         description="Linked worktrees across every repo, prunable leftovers, and branches older than 30 days. Removing is guarded: the main worktree and default branches are off limits."
-        right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
+        right={
+          !remote && (
+            <Toggle
+              checked={enabled}
+              onChange={toggleModule}
+              label="Module on"
+            />
+          )
+        }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="basis-[260px] grow max-w-[420px]">
-          <SearchInput value={query} onChange={setQuery} placeholder="repo, branch or path…" />
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="repo, branch or path…"
+          />
         </div>
         <span className="font-mono text-[11px] leading-relaxed text-quiet">
-          {snap?.cachedAt ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}` : "scanning…"}
+          {snap?.cachedAt
+            ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}`
+            : "scanning…"}
         </span>
       </div>
       <ErrorNote message={error} />
+      <div data-machine={machine.id}>
+        <MachineNotice status={status} />
+      </div>
       <p className="mb-4 text-xs leading-relaxed text-muted">
-        Find PRs opens GitHub results for a branch, including closed and merged PRs.
-        Links are available for repositories with a GitHub origin.
+        Find PRs opens GitHub results for a branch, including closed and merged
+        PRs. Links are available for repositories with a GitHub origin.
       </p>
       {snap?.enabled === false ? (
-        <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
+        <EmptyState
+          glyph="[x]"
+          title="Module off"
+          hint="Switch it back on above."
+        />
       ) : repos.length === 0 ? (
         <EmptyState
           glyph="[ : ]"
@@ -138,11 +171,16 @@ export default function WorktreesPage() {
         />
       ) : (
         repos.map((repo) => (
-          <Card key={repo.path} className="mb-4 p-[22px_24px] max-[600px]:p-3">
+          <Card
+            key={`${machine.id}:${repo.path}`}
+            className="mb-4 p-[22px_24px] max-[600px]:p-3"
+          >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="truncate">{repo.name}</h3>
-                <p className="mt-1 font-mono text-[11px] leading-relaxed text-quiet truncate">{repo.path}</p>
+                <p className="mt-1 font-mono text-[11px] leading-relaxed text-quiet truncate">
+                  {repo.path}
+                </p>
               </div>
               <Button
                 variant="ghost"
@@ -159,28 +197,62 @@ export default function WorktreesPage() {
                 Prune
               </Button>
             </div>
-            <div className={repo.staleBranches.length ? "mb-3.5 flex flex-col gap-2" : "flex flex-col gap-2"}>
+            <div
+              className={
+                repo.staleBranches.length
+                  ? "mb-3.5 flex flex-col gap-2"
+                  : "flex flex-col gap-2"
+              }
+            >
               {repo.worktrees.map((wt) => (
                 <div
                   key={wt.path}
                   className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center max-[700px]:grid-cols-[minmax(0,1fr)_auto] gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                 >
                   <div className="min-w-0 max-[700px]:col-span-2">
-                    <span className="block truncate font-mono text-muted" title={wt.branch}>{wt.branch}</span>
-                    <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={wt.path}>
+                    <span
+                      className="block truncate font-mono text-muted"
+                      title={wt.branch}
+                    >
+                      {wt.branch}
+                    </span>
+                    <div
+                      className="font-mono text-[11px] leading-relaxed text-quiet truncate"
+                      title={wt.path}
+                    >
                       {wt.path}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                      {wt.head ? <span className="font-mono text-quiet" title={wt.head}>Commit {wt.head.slice(0, 8)}</span> : null}
+                      {wt.head ? (
+                        <span className="font-mono text-quiet" title={wt.head}>
+                          Commit {wt.head.slice(0, 8)}
+                        </span>
+                      ) : null}
                       {branchPullRequestsUrl(repo.githubUrl, wt.branch) ? (
-                        <a href={branchPullRequestsUrl(repo.githubUrl, wt.branch)!} target="_blank" rel="noreferrer" className="rounded text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent">Find PRs ↗</a>
+                        <a
+                          href={branchPullRequestsUrl(
+                            repo.githubUrl,
+                            wt.branch,
+                          )!}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent"
+                        >
+                          Find PRs ↗
+                        </a>
                       ) : null}
                     </div>
-                    {wt.reason ? <p className="mt-1 whitespace-normal break-words text-xs text-alarm">{wt.reason}</p> : null}
+                    {wt.reason ? (
+                      <p className="mt-1 whitespace-normal break-words text-xs text-alarm">
+                        {wt.reason}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex gap-1.5">
                     {wt.isMain ? <Badge variant="scope">main</Badge> : null}
-                    {wt.isPrunable ? <Badge variant="alarm">prunable</Badge> : null}
+                    {wt.isPrunable ? (
+                      <Badge variant="alarm">prunable</Badge>
+                    ) : null}
                   </div>
                   {wt.isMain ? (
                     <Button disabled>Main</Button>
@@ -189,7 +261,12 @@ export default function WorktreesPage() {
                       variant="force"
                       busy={busy === `${repo.path}:${wt.path}`}
                       onClick={() => {
-                        if (!window.confirm(`Remove worktree ${wt.path}? The directory is deleted.`)) return;
+                        if (
+                          !window.confirm(
+                            `Remove worktree ${wt.path}? The directory is deleted.`,
+                          )
+                        )
+                          return;
                         void act(
                           `${repo.path}:${wt.path}`,
                           "/api/worktrees/remove",
@@ -216,12 +293,27 @@ export default function WorktreesPage() {
                       className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center max-[700px]:grid-cols-[minmax(0,1fr)_auto] gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                     >
                       <div className="min-w-0 max-[700px]:col-span-2">
-                        <span className="block truncate font-mono text-muted" title={b.name}>{b.name}</span>
+                        <span
+                          className="block truncate font-mono text-muted"
+                          title={b.name}
+                        >
+                          {b.name}
+                        </span>
                         <span className="font-mono text-[11px] leading-relaxed text-quiet">
                           Last commit {formatRelative(b.lastCommitIso)}
                         </span>
                         {branchPullRequestsUrl(repo.githubUrl, b.name) ? (
-                          <a href={branchPullRequestsUrl(repo.githubUrl, b.name)!} target="_blank" rel="noreferrer" className="ml-3 rounded text-xs text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent">Find PRs ↗</a>
+                          <a
+                            href={branchPullRequestsUrl(
+                              repo.githubUrl,
+                              b.name,
+                            )!}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-3 rounded text-xs text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent"
+                          >
+                            Find PRs ↗
+                          </a>
                         ) : null}
                       </div>
                       <Badge variant={b.merged ? "quiet" : "alarm"}>
@@ -238,7 +330,11 @@ export default function WorktreesPage() {
                           void act(
                             `${repo.path}:${b.name}`,
                             "/api/worktrees/delete-branch",
-                            { repoPath: repo.path, branch: b.name, force: !b.merged },
+                            {
+                              repoPath: repo.path,
+                              branch: b.name,
+                              force: !b.merged,
+                            },
                             `Deleted ${b.name}.`,
                           );
                         }}

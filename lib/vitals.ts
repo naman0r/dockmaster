@@ -4,6 +4,9 @@ import { exec } from "@/lib/exec";
 import { TtlCache } from "@/lib/cache";
 
 export type Vitals = {
+  cpuPct?: number | null;
+  memTotalBytes?: number;
+  memUsedBytes?: number;
   uptimeSeconds: number;
   loadAvg: [number, number, number] | null;
   // Load average only means anything next to the core count it competes for.
@@ -56,7 +59,28 @@ export function parseBattery(output: string): Vitals["battery"] {
   return { pct, source, status };
 }
 
+export function cpuUsage(
+  before: ReturnType<typeof os.cpus>,
+  after: ReturnType<typeof os.cpus>,
+): number | null {
+  const total = (cpus: ReturnType<typeof os.cpus>) =>
+    cpus.reduce(
+      (n, c) => n + Object.values(c.times).reduce((a, b) => a + b, 0),
+      0,
+    );
+  const idle = (cpus: ReturnType<typeof os.cpus>) =>
+    cpus.reduce((n, c) => n + c.times.idle, 0);
+  const elapsed = total(after) - total(before);
+  return elapsed > 0
+    ? Math.max(
+        0,
+        Math.min(100, 100 * (1 - (idle(after) - idle(before)) / elapsed)),
+      )
+    : null;
+}
 async function sample(): Promise<Vitals> {
+  const cpuBefore = os.cpus();
+  const started = Date.now();
   const [boottime, loadavg, dfOut, memOut, battOut] = await Promise.allSettled([
     exec(["/usr/sbin/sysctl", "-n", "kern.boottime"]),
     exec(["/usr/sbin/sysctl", "-n", "vm.loadavg"]),
@@ -65,12 +89,21 @@ async function sample(): Promise<Vitals> {
     exec(["/usr/bin/pmset", "-g", "batt"]),
   ]);
 
-  const unwrap = <T,>(r: PromiseSettledResult<string>, parse: (out: string) => T): T | null =>
-    r.status === "fulfilled" ? parse(r.value) : null;
+  const unwrap = <T>(
+    r: PromiseSettledResult<string>,
+    parse: (out: string) => T,
+  ): T | null => (r.status === "fulfilled" ? parse(r.value) : null);
 
-  const bootSec = boottime.status === "fulfilled" ? parseBoottime(boottime.value) : null;
+  const bootSec =
+    boottime.status === "fulfilled" ? parseBoottime(boottime.value) : null;
+  await new Promise((resolve) =>
+    setTimeout(resolve, Math.max(0, 500 - (Date.now() - started))),
+  );
   const sampledAt = new Date().toISOString();
   return {
+    cpuPct: cpuUsage(cpuBefore, os.cpus()),
+    memTotalBytes: os.totalmem(),
+    memUsedBytes: Math.max(0, os.totalmem() - os.freemem()),
     uptimeSeconds: bootSec ? Math.max(0, Date.now() / 1000 - bootSec) : 0,
     loadAvg: unwrap(loadavg, parseLoadAvg),
     cores: os.cpus().length,
@@ -83,7 +116,10 @@ async function sample(): Promise<Vitals> {
 
 const cache = new TtlCache<Vitals>(2000);
 
-export async function sampleVitals(): Promise<{ data: Vitals; cachedAt: string }> {
+export async function sampleVitals(): Promise<{
+  data: Vitals;
+  cachedAt: string;
+}> {
   const { data, cachedAt } = await cache.get(false, sample);
   return { data, cachedAt };
 }

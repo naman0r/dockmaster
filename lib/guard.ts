@@ -1,3 +1,4 @@
+import { remoteRouteAllowed } from "./machines/allowlist";
 import crypto from "crypto";
 import { getToken } from "./token";
 
@@ -32,13 +33,7 @@ export function guard(req: Request): Response | null {
     url.searchParams.get("machine") ||
     req.headers.get("x-dockmaster-machine") ||
     "local";
-  if (
-    machine !== "local" &&
-    !(
-      req.method === "GET" &&
-      ["/api/ports", "/api/vitals"].includes(url.pathname)
-    )
-  ) {
+  if (machine !== "local" && !remoteRouteAllowed(req.method, url.pathname)) {
     return Response.json(
       { error: "This operation is local-only. Select This Mac." },
       { status: 403 },

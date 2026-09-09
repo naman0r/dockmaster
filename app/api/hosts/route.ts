@@ -1,17 +1,16 @@
+import { remoteRoute } from "@/lib/machines/routes";
 import { guard } from "@/lib/guard";
 import { errorJson } from "@/lib/http";
 import { moduleEnabled } from "@/lib/settings";
 import { snapshot, disabledSnapshot } from "@/lib/types";
-import {
-  parseHosts,
-  readHostsFile,
-  readProfiles,
-} from "@/lib/hosts";
+import { parseHosts, readHostsFile, readProfiles } from "@/lib/hosts";
 
 export async function GET(req: Request) {
   const denied = guard(req);
   if (denied) return denied;
   try {
+    const remote = await remoteRoute(req);
+    if (remote) return remote;
     if (!(await moduleEnabled("hosts"))) {
       return Response.json(disabledSnapshot());
     }

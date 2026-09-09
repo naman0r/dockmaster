@@ -27,10 +27,11 @@ function fake(reply?: (r: Record<string, unknown>) => unknown) {
   return { child, launch: launch as unknown as typeof spawn };
 }
 const hello = {
+  sessionId: "11111111-1111-1111-1111-111111111111",
   hostname: "homelab",
   os: "darwin",
   user: "naman",
-  version: "1.0.0",
+  version: "2.0.0",
   scanRoot: "/dev",
   capabilities: ["ports", "vitals"],
 };
@@ -48,7 +49,7 @@ afterEach(() => {
 describe("SSH lifecycle", () => {
   it("handshakes once and reuses a connection for concurrent reads", async () => {
     const f = fake((r) => ({
-      v: 1,
+      v: 2,
       id: r.id,
       result: {
         cachedAt: new Date().toISOString(),
@@ -61,9 +62,9 @@ describe("SSH lifecycle", () => {
   });
   it("rejects incompatible protocol and malformed payloads", async () => {
     for (const reply of [
-      (r: Record<string, unknown>) => ({ v: 2, id: r.id }),
+      (r: Record<string, unknown>) => ({ v: 3, id: r.id }),
       (r: Record<string, unknown>) => ({
-        v: 1,
+        v: 2,
         id: r.id,
         result: { cachedAt: "bad", data: hello },
       }),
@@ -77,7 +78,7 @@ describe("SSH lifecycle", () => {
   it("rejects incompatible companion versions", async () => {
     const c = connection(
       fake((r) => ({
-        v: 1,
+        v: 2,
         id: r.id,
         result: {
           cachedAt: new Date().toISOString(),
@@ -112,7 +113,7 @@ describe("SSH lifecycle", () => {
   it("closes an idle companion", async () => {
     vi.useFakeTimers();
     const f = fake((r) => ({
-      v: 1,
+      v: 2,
       id: r.id,
       result: { cachedAt: new Date().toISOString(), data: hello },
     }));
@@ -125,7 +126,7 @@ describe("SSH lifecycle", () => {
 
 it("does not accept remote-supplied machine provenance", async () => {
   const f = fake((r) => ({
-    v: 1,
+    v: 2,
     id: r.id,
     result: {
       machineId: "local",

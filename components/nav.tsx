@@ -37,7 +37,7 @@ export function Nav() {
         </span>
       </Link>
       <MachineSelector />
-      {machine.id === "local" && <CommandPalette />}
+      <CommandPalette key={machine.id} />
       <nav
         className="flex flex-col gap-[3px] max-[900px]:flex-row max-[900px]:flex-wrap"
         aria-label="Modules"

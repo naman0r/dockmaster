@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { apiGet, apiPost } from "@/lib/client/api";
+import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
   Badge,
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui";
 
 type Sample = {
+  startedAt?: string;
+  isStoppable?: boolean;
   pid: number;
   uid: number;
   user: string;
@@ -26,7 +28,12 @@ type Sample = {
 type Snapshot = {
   enabled: boolean;
   cachedAt: string | null;
-  data: { sample: Sample[]; sampledAt: string; intervalMs: number; currentUid: number } | null;
+  data: {
+    sample: Sample[];
+    sampledAt: string;
+    intervalMs: number;
+    currentUid: number;
+  } | null;
 };
 
 function formatMem(kb: number): string {
@@ -41,9 +48,10 @@ function basename(command: string): string {
 }
 
 export default function ProcessesPage() {
+  const { apiGet, apiPost, remote, machine, status } = useMachineApi();
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
-  const [pendingForce, setPendingForce] = useState<Set<number>>(new Set());
+  const [pendingForce, setPendingForce] = useState<Set<string>>(new Set());
   const [busyPid, setBusyPid] = useState<number | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [query, setQuery] = useState("");
@@ -61,22 +69,32 @@ export default function ProcessesPage() {
   usePoll(refresh, 3000);
 
   const kill = useCallback(
-    async (pid: number, mode: "term" | "kill") => {
-      if (mode === "kill" && !window.confirm(`Force kill PID ${pid}? Unsaved state may be lost.`)) {
+    async (pid: number, mode: "term" | "kill", startedAt?: string) => {
+      const identity = `${pid}:${startedAt || ""}`;
+      if (
+        mode === "kill" &&
+        !window.confirm(`Force kill PID ${pid}? Unsaved state may be lost.`)
+      ) {
         return;
       }
       setBusyPid(pid);
       try {
-        const result = await apiPost<{ stillAlive: boolean }>("/api/processes/kill", { pid, mode });
+        const result = await apiPost<{ stillAlive: boolean }>(
+          "/api/processes/kill",
+          { pid, mode, ...(remote ? { startedAt } : {}) },
+        );
         if (result.stillAlive && mode === "term") {
-          setPendingForce((prev) => new Set(prev).add(pid));
-          toast(`PID ${pid} is still alive. Force kill is now available.`, true);
+          setPendingForce((prev) => new Set(prev).add(identity));
+          toast(
+            `PID ${pid} is still alive. Force kill is now available.`,
+            true,
+          );
         } else if (result.stillAlive) {
           toast(`PID ${pid} is still alive.`, true);
         } else {
           setPendingForce((prev) => {
             const next = new Set(prev);
-            next.delete(pid);
+            next.delete(identity);
             return next;
           });
           toast(`PID ${pid} stopped.`);
@@ -88,7 +106,7 @@ export default function ProcessesPage() {
         await refresh();
       }
     },
-    [refresh, toast],
+    [refresh, toast, remote],
   );
 
   const toggleModule = useCallback(
@@ -111,12 +129,15 @@ export default function ProcessesPage() {
     const needle = query.trim().toLowerCase();
     if (!needle) return sample;
     return sample.filter((p) =>
-      `${p.pid} ${p.user} ${basename(p.command)} ${p.command}`.toLowerCase().includes(needle),
+      `${p.pid} ${p.user} ${basename(p.command)} ${p.command}`
+        .toLowerCase()
+        .includes(needle),
     );
   }, [data, query]);
 
   // Shares the row grid so the labels sit exactly over their columns.
-  const GRID = "grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 px-[18px]";
+  const GRID =
+    "grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 px-[18px]";
 
   return (
     <>
@@ -124,7 +145,15 @@ export default function ProcessesPage() {
         eyebrow="Engine room"
         title="CPU & memory hogs"
         description="Instantaneous CPU sampled over one second (not the since-launch average) plus resident memory. Stop is guarded like Ports: own processes only, whole tree, never PID 1."
-        right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
+        right={
+          !remote && (
+            <Toggle
+              checked={enabled}
+              onChange={toggleModule}
+              label="Module on"
+            />
+          )
+        }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="grow basis-[260px] max-w-[420px]">
@@ -141,15 +170,32 @@ export default function ProcessesPage() {
         </span>
       </div>
       <ErrorNote message={error} />
+      <div data-machine={machine.id}>
+        <MachineNotice status={status} />
+      </div>
       {snap?.enabled === false ? (
-        <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
+        <EmptyState
+          glyph="[x]"
+          title="Module off"
+          hint="Switch it back on above."
+        />
       ) : !data || data.sample.length === 0 ? (
-        <EmptyState glyph="[…]" title="Sampling" hint="Two ps passes, one second apart." />
+        <EmptyState
+          glyph="[…]"
+          title="Sampling"
+          hint="Two ps passes, one second apart."
+        />
       ) : filtered.length === 0 ? (
-        <EmptyState glyph="[ ? ]" title="No matching processes" hint="Try a pid, user, or command name." />
+        <EmptyState
+          glyph="[ ? ]"
+          title="No matching processes"
+          hint="Try a pid, user, or command name."
+        />
       ) : (
         <div className="flex flex-col gap-2">
-          <div className={`${GRID} pb-1 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet`}>
+          <div
+            className={`${GRID} pb-1 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet`}
+          >
             <span>PID</span>
             <span>Command</span>
             <span className="min-w-16 text-right">CPU</span>
@@ -157,17 +203,23 @@ export default function ProcessesPage() {
             <span />
           </div>
           {filtered.map((p) => {
-            const mine = p.uid === data.currentUid;
-            const force = pendingForce.has(p.pid);
+            const mine =
+              p.isStoppable !== false &&
+              p.uid === data.currentUid &&
+              (!remote || status.state === "ready");
+            const force = pendingForce.has(`${p.pid}:${p.startedAt || ""}`);
             return (
               <div
-                key={p.pid}
+                key={`${machine.id}:${p.pid}`}
                 className="card-surface grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
               >
                 <span className="font-mono text-quiet">{p.pid}</span>
                 <div className="truncate">
                   <strong className="font-mono">{basename(p.command)}</strong>
-                  <span className="ml-2.5 truncate font-mono text-[11px] leading-relaxed text-quiet" title={p.command}>
+                  <span
+                    className="ml-2.5 truncate font-mono text-[11px] leading-relaxed text-quiet"
+                    title={p.command}
+                  >
                     {p.command}
                   </span>
                 </div>
@@ -181,7 +233,9 @@ export default function ProcessesPage() {
                   <Button
                     variant={force ? "force" : "stop"}
                     busy={busyPid === p.pid}
-                    onClick={() => kill(p.pid, force ? "kill" : "term")}
+                    onClick={() =>
+                      kill(p.pid, force ? "kill" : "term", p.startedAt)
+                    }
                   >
                     {busyPid === p.pid ? "…" : force ? "Force kill" : "Stop"}
                   </Button>

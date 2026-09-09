@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { apiGet, apiPost } from "@/lib/client/api";
+import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
   Badge,
@@ -37,6 +37,7 @@ type Snapshot = {
 };
 
 export default function SecretsPage() {
+  const { apiGet, apiPost, remote, machine, status } = useMachineApi();
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [rescanning, setRescanning] = useState(false);
@@ -93,7 +94,15 @@ export default function SecretsPage() {
         eyebrow="Bloodhound"
         title="Secrets audit"
         description="Credential-shaped strings in TRACKED files across every repo, plus .env hygiene. Previews are redacted; the server never returns full secret text."
-        right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
+        right={
+          !remote && (
+            <Toggle
+              checked={enabled}
+              onChange={toggleModule}
+              label="Module on"
+            />
+          )
+        }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Button busy={rescanning} onClick={rescan}>
@@ -108,15 +117,24 @@ export default function SecretsPage() {
         </span>
       </div>
       <ErrorNote message={error} />
+      <div data-machine={machine.id}>
+        <MachineNotice status={status} />
+      </div>
       {snap?.enabled === false ? (
-        <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
+        <EmptyState
+          glyph="[x]"
+          title="Module off"
+          hint="Switch it back on above."
+        />
       ) : !data ? (
         <EmptyState glyph="[…]" title="Walking your dev root" />
       ) : (
         <>
           <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Tracked findings</span>
-            <span className="text-quiet tracking-[0.08em]">{data.findings.length} total</span>
+            <span className="text-quiet tracking-[0.08em]">
+              {data.findings.length} total
+            </span>
           </div>
           {data.findings.length === 0 ? (
             <EmptyState
@@ -134,7 +152,11 @@ export default function SecretsPage() {
                       key={i}
                       className="card-surface grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                     >
-                      <Badge variant={f.severity === "high" ? "alarm" : "scope"}>{f.ruleLabel}</Badge>
+                      <Badge
+                        variant={f.severity === "high" ? "alarm" : "scope"}
+                      >
+                        {f.ruleLabel}
+                      </Badge>
                       <div className="truncate">
                         <span className="font-mono text-muted">
                           {f.path}:{f.line}
@@ -152,10 +174,14 @@ export default function SecretsPage() {
           )}
           <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Untracked .env files</span>
-            <span className="text-quiet tracking-[0.08em]">{data.untrackedEnvFiles.length} (the good kind)</span>
+            <span className="text-quiet tracking-[0.08em]">
+              {data.untrackedEnvFiles.length} (the good kind)
+            </span>
           </div>
           {data.untrackedEnvFiles.length === 0 ? (
-            <p className="font-mono text-[11px] leading-relaxed text-quiet">No local .env files sitting untracked.</p>
+            <p className="font-mono text-[11px] leading-relaxed text-quiet">
+              No local .env files sitting untracked.
+            </p>
           ) : (
             <Card className="p-[22px_24px]">
               <div className="flex flex-col gap-1">

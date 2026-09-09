@@ -1,7 +1,7 @@
 import { it, expect } from "vitest";
 import { guard } from "@/lib/guard";
 import { getToken } from "@/lib/token";
-it("keeps token and origin guards and refuses remote actions", () => {
+it("keeps token and origin guards and rejects unsupported remote operations", () => {
   const headers = { host: "localhost:36252", "x-dockmaster-token": getToken() };
   expect(
     guard(
@@ -10,12 +10,7 @@ it("keeps token and origin guards and refuses remote actions", () => {
       }),
     ),
   ).toBeNull();
-  for (const route of [
-    "ports/stop",
-    "processes/kill",
-    "worktrees/remove",
-    "hosts/apply",
-  ]) {
+  for (const route of ["logbook/tick", "unknown/exec"]) {
     expect(
       guard(
         new Request(`http://localhost:36252/api/${route}?machine=homelab`, {

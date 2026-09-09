@@ -51,6 +51,11 @@ export function validateUrl(url: string): string {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new HttpError(400, "url must use http or https.");
   }
+  if (parsed.username || parsed.password)
+    throw new HttpError(
+      400,
+      "Health URLs cannot contain embedded credentials.",
+    );
   return parsed.toString();
 }
 
@@ -60,7 +65,13 @@ export async function addCheck(label: string, url: string): Promise<Check> {
     throw new HttpError(400, "label must be 1-120 characters.");
   }
   const checks = await readChecks();
-  const check: Check = { id: crypto.randomUUID(), label: clean, url: validateUrl(url) };
+  if (checks.length >= 100)
+    throw new HttpError(400, "Limit of 100 health checks per machine.");
+  const check: Check = {
+    id: crypto.randomUUID(),
+    label: clean,
+    url: validateUrl(url),
+  };
   checks.push(check);
   await writeChecks(checks);
   return check;
@@ -75,7 +86,10 @@ export async function removeCheck(id: string): Promise<void> {
   await writeChecks(next);
 }
 
-export async function runCheck(check: Check, timeoutMs = 4000): Promise<CheckResult> {
+export async function runCheck(
+  check: Check,
+  timeoutMs = 4000,
+): Promise<CheckResult> {
   const base: CheckResult = {
     id: check.id,
     label: check.label,
@@ -95,11 +109,23 @@ export async function runCheck(check: Check, timeoutMs = 4000): Promise<CheckRes
       redirect: "follow",
       cache: "no-store",
     });
-    return { ...base, lastStatus: res.status, lastOk: res.ok, latencyMs: Date.now() - started };
+    await res.body?.cancel();
+    return {
+      ...base,
+      lastStatus: res.status,
+      lastOk: res.ok,
+      latencyMs: Date.now() - started,
+    };
   } catch (err) {
-    const message =
-      controller.signal.aborted ? `timed out after ${timeoutMs}ms` : (err as Error).message;
-    return { ...base, lastOk: false, latencyMs: Date.now() - started, error: message };
+    const message = controller.signal.aborted
+      ? `timed out after ${timeoutMs}ms`
+      : (err as Error).message;
+    return {
+      ...base,
+      lastOk: false,
+      latencyMs: Date.now() - started,
+      error: message,
+    };
   } finally {
     clearTimeout(timer);
   }

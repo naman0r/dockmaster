@@ -12,10 +12,10 @@ export const machine = {
 };
 describe("companion protocol", () => {
   it("allows only versioned read operations", () => {
-    expect(validRequest({ v: 1, id: "a", op: "ports" })).toBe(true);
+    expect(validRequest({ v: 2, id: "a", op: "ports" })).toBe(true);
     for (const op of ["exec", "kill", "__proto__", null])
-      expect(validRequest({ v: 1, id: "a", op })).toBe(false);
-    expect(validRequest({ v: 2, id: "a", op: "ports" })).toBe(false);
+      expect(validRequest({ v: 2, id: "a", op })).toBe(false);
+    expect(validRequest({ v: 3, id: "a", op: "ports" })).toBe(false);
   });
   it("rejects invalid nested payloads", () => {
     const r = {

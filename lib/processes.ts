@@ -1,9 +1,13 @@
 import os from "os";
+import { parseDetailOutput } from "@/lib/ports/scan";
+import { ancestorChain, readProcessTable } from "@/lib/proctree";
 import { exec } from "@/lib/exec";
 
 const PS = "/bin/ps";
 
 export type ProcessSample = {
+  startedAt?: string;
+  isStoppable?: boolean;
   pid: number;
   uid: number;
   user: string;
@@ -12,12 +16,16 @@ export type ProcessSample = {
   rssKb: number;
 };
 
-type RawSample = Map<number, { uid: number; cputimeSec: number; rssKb: number; command: string }>;
+type RawSample = Map<
+  number,
+  { uid: number; cputimeSec: number; rssKb: number; command: string }
+>;
 
 // "MM:SS.cc" or "HH:MM:SS.cc" → seconds.
 export function parseCputime(raw: string): number {
   const parts = raw.split(":").map(Number);
-  if (!parts.every(Number.isFinite) || parts.length < 2 || parts.length > 3) return NaN;
+  if (!parts.every(Number.isFinite) || parts.length < 2 || parts.length > 3)
+    return NaN;
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   return parts[0] * 3600 + parts[1] * 60 + parts[2];
 }
@@ -31,8 +39,17 @@ export function parseSample(output: string): RawSample {
     const uid = Number(tokens[1]);
     const cputimeSec = parseCputime(tokens[2]);
     const rssKb = Number(tokens[3]);
-    if (![pid, uid, rssKb].every(Number.isInteger) || !Number.isFinite(cputimeSec)) continue;
-    sample.set(pid, { uid, cputimeSec, rssKb, command: tokens.slice(4).join(" ") });
+    if (
+      ![pid, uid, rssKb].every(Number.isInteger) ||
+      !Number.isFinite(cputimeSec)
+    )
+      continue;
+    sample.set(pid, {
+      uid,
+      cputimeSec,
+      rssKb,
+      command: tokens.slice(4).join(" "),
+    });
   }
   return sample;
 }
@@ -64,7 +81,9 @@ export function toRows(
   const top = new Map<number, ProcessSample>();
   for (const row of rows.slice(0, 25)) top.set(row.pid, row);
   for (const row of byMem.slice(0, 25)) top.set(row.pid, row);
-  return [...top.values()].sort((a, b) => b.cpuPct - a.cpuPct || b.rssKb - a.rssKb);
+  return [...top.values()].sort(
+    (a, b) => b.cpuPct - a.cpuPct || b.rssKb - a.rssKb,
+  );
 }
 
 async function readUsernames(): Promise<Map<number, string>> {
@@ -93,8 +112,20 @@ export async function sampleProcesses(): Promise<{
   await new Promise((resolve) => setTimeout(resolve, intervalMs));
   const second = parseSample(await exec([PS, ...args]));
   const users = await readUsernames();
+  const details = parseDetailOutput(
+    await exec([PS, "-axo", "pid=,ppid=,uid=,lstart=,user=,command="]),
+  );
+  const protectedPids = ancestorChain(process.pid, await readProcessTable());
   return {
-    sample: toRows(first, second, intervalMs, users),
+    sample: toRows(first, second, intervalMs, users).map((row) => ({
+      ...row,
+      startedAt: details.get(row.pid)?.startedAt || "",
+      isStoppable:
+        !!details.get(row.pid)?.startedAt &&
+        row.uid === process.getuid!() &&
+        row.pid > 1 &&
+        !protectedPids.has(row.pid),
+    })),
     sampledAt: new Date().toISOString(),
     intervalMs,
     currentUid: process.getuid!(),

@@ -28,6 +28,16 @@ export function RemoteHarbor() {
   const metrics = v
     ? [
         [
+          "CPU utilization",
+          v.cpuPct == null ? "Sampling…" : `${v.cpuPct.toFixed(1)}%`,
+        ],
+        [
+          "Memory used / total",
+          v.memTotalBytes
+            ? `${((v.memUsedBytes || 0) / 1024 ** 3).toFixed(1)} / ${(v.memTotalBytes / 1024 ** 3).toFixed(1)} GB`
+            : "Unavailable",
+        ],
+        [
           "Uptime",
           `${Math.floor(v.uptimeSeconds / 3600)}h ${Math.floor((v.uptimeSeconds % 3600) / 60)}m`,
         ],
@@ -60,7 +70,7 @@ export function RemoteHarbor() {
       <PageHeader
         eyebrow="Remote system vitals"
         title={machine.name}
-        description="Collected on this machine while this view is visible. Other modules are available on This Mac."
+        description="Collected on this machine while this view is visible. Select a module to inspect this machine."
       />
       <ErrorNote message={error} />
       <p role="status" className="my-4 font-mono text-xs text-muted">

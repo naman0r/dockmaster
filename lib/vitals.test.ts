@@ -9,9 +9,11 @@ import {
 
 describe("parseBoottime", () => {
   it("extracts the epoch seconds", () => {
-    expect(parseBoottime("{ sec = 1788306999, usec = 848088 } Wed Sep  2 07:56:39 2026")).toBe(
-      1788306999,
-    );
+    expect(
+      parseBoottime(
+        "{ sec = 1788306999, usec = 848088 } Wed Sep  2 07:56:39 2026",
+      ),
+    ).toBe(1788306999);
   });
 
   it("returns null on garbage", () => {
@@ -35,7 +37,11 @@ describe("parseDf", () => {
       "Filesystem 1024-blocks Used Available Capacity iused ifree %iused Mounted on",
       "/dev/disk3s1s1   482766932  18748400 100408844    16%  458732 1004088440    0%   /",
     ].join("\n");
-    expect(parseDf(out)).toEqual({ freeKb: 100408844, totalKb: 482766932, usedPct: 16 });
+    expect(parseDf(out)).toEqual({
+      freeKb: 100408844,
+      totalKb: 482766932,
+      usedPct: 16,
+    });
   });
 
   it("returns null when the root row is missing", () => {
@@ -45,7 +51,9 @@ describe("parseDf", () => {
 
 describe("parseMemoryPressure", () => {
   it("extracts the free percentage", () => {
-    expect(parseMemoryPressure("System-wide memory free percentage: 47%")).toBe(47);
+    expect(parseMemoryPressure("System-wide memory free percentage: 47%")).toBe(
+      47,
+    );
   });
 });
 
@@ -53,10 +61,34 @@ describe("parseBattery", () => {
   it("parses percent, source, and status", () => {
     const out =
       "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22216803)\t74%; charging; 0:57 remaining present: true";
-    expect(parseBattery(out)).toEqual({ pct: 74, source: "AC Power", status: "charging" });
+    expect(parseBattery(out)).toEqual({
+      pct: 74,
+      source: "AC Power",
+      status: "charging",
+    });
   });
 
   it("returns null on desktops", () => {
     expect(parseBattery("No internal battery")).toBeNull();
   });
+});
+
+it("computes CPU utilization from elapsed idle and total ticks", async () => {
+  const { cpuUsage } = await import("./vitals");
+  const before = [
+    {
+      model: "test",
+      speed: 1,
+      times: { user: 100, nice: 0, sys: 100, idle: 800, irq: 0 },
+    },
+  ];
+  const after = [
+    {
+      model: "test",
+      speed: 1,
+      times: { user: 130, nice: 0, sys: 120, idle: 850, irq: 0 },
+    },
+  ];
+  expect(cpuUsage(before, after)).toBe(50);
+  expect(cpuUsage(before, before)).toBeNull();
 });

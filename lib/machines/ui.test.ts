@@ -11,11 +11,16 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/client/api", () => ({
   apiGet: mocks.get,
+  apiRequest: (url: string, init?: RequestInit) =>
+    init?.method === "POST"
+      ? mocks.post(url, JSON.parse(String(init.body)), init)
+      : mocks.get(url),
   apiPost: mocks.post,
   apiDelete: mocks.del,
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => mocks.pathname }));
 vi.mock("@/components/remote-harbor", () => ({ RemoteHarbor: () => null }));
+import ProcessesPage from "@/app/processes/page";
 import PortsPage from "@/app/ports/page";
 import {
   MachineProvider,
@@ -114,7 +119,7 @@ it("pauses hidden scans and coalesces slow polls, then stops on unmount", async 
 });
 it("does not mount local-only modules under a remote selection", async () => {
   sessionStorage.setItem("dockmaster-machine", "remote");
-  mocks.pathname = "/processes";
+  mocks.pathname = "/logbook";
   mocks.get.mockResolvedValue({
     machines: [
       { id: "local", name: "This Mac" },
@@ -139,7 +144,7 @@ it("does not mount local-only modules under a remote selection", async () => {
   expect(host.textContent).toContain("local-only");
 });
 
-it("renders remote listeners without localhost links or process actions", async () => {
+it("renders remote listeners without misleading localhost links or unguarded actions", async () => {
   sessionStorage.setItem("dockmaster-machine", "remote");
   const service = {
     pid: 42,
@@ -153,25 +158,27 @@ it("renders remote listeners without localhost links or process actions", async 
     user: "naman",
     startedAt: new Date().toISOString(),
     isSystem: false,
-    isStoppable: true,
+    isStoppable: false,
     isExposed: false,
     note: "",
   };
   mocks.get.mockImplementation(async (url: string) =>
-    url === "/api/machines"
-      ? {
-          machines: [
-            { id: "local", name: "This Mac" },
-            { id: "remote", name: "Homelab" },
-          ],
-        }
-      : {
-          machineId: "remote",
-          enabled: true,
-          state: "ready",
-          cachedAt: new Date().toISOString(),
-          data: { services: [service] },
-        },
+    url.startsWith("/api/tunnels")
+      ? { tunnels: [] }
+      : url === "/api/machines"
+        ? {
+            machines: [
+              { id: "local", name: "This Mac" },
+              { id: "remote", name: "Homelab" },
+            ],
+          }
+        : {
+            machineId: "remote",
+            enabled: true,
+            state: "ready",
+            cachedAt: new Date().toISOString(),
+            data: { services: [service] },
+          },
   );
   await act(async () =>
     root.render(
@@ -192,4 +199,94 @@ it("renders remote listeners without localhost links or process actions", async 
     [...host.querySelectorAll("button")].some((b) => b.textContent === "Stop"),
   ).toBe(false);
   expect(host.textContent).toContain("Read-only");
+});
+
+it("keeps Notepad shared and available while a remote machine is selected", async () => {
+  sessionStorage.setItem("dockmaster-machine", "remote");
+  mocks.pathname = "/notepad";
+  mocks.get.mockResolvedValue({
+    machines: [
+      { id: "local", name: "This Mac" },
+      { id: "remote", name: "Homelab" },
+    ],
+  });
+  await act(async () =>
+    root.render(
+      React.createElement(
+        MachineProvider,
+        null,
+        React.createElement(
+          MachineBoundary,
+          null,
+          React.createElement("p", null, "Shared note"),
+        ),
+      ),
+    ),
+  );
+  expect(host.textContent).toContain("Shared note");
+  expect(host.textContent).toContain("stored on this Mac");
+  expect(host.textContent).not.toContain("local-only");
+});
+it("sends the displayed process identity and current lease to the selected machine", async () => {
+  sessionStorage.setItem("dockmaster-machine", "remote");
+  mocks.pathname = "/processes";
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  mocks.get.mockImplementation(async (url: string) =>
+    url === "/api/machines"
+      ? {
+          machines: [
+            { id: "local", name: "This Mac" },
+            { id: "remote", name: "Homelab" },
+          ],
+        }
+      : {
+          machineId: "remote",
+          enabled: true,
+          state: "ready",
+          lease: "grant",
+          cachedAt: new Date().toISOString(),
+          data: {
+            sample: [
+              {
+                pid: 42,
+                uid: 501,
+                user: "test",
+                command: "node",
+                cpuPct: 0,
+                rssKb: 123,
+                startedAt: "identity",
+                isStoppable: true,
+              },
+            ],
+            currentUid: 501,
+            sampledAt: new Date().toISOString(),
+            intervalMs: 1000,
+          },
+        },
+  );
+  mocks.post.mockResolvedValue({ stillAlive: false });
+  await act(async () =>
+    root.render(
+      React.createElement(
+        MachineProvider,
+        null,
+        React.createElement(
+          MachineBoundary,
+          null,
+          React.createElement(ProcessesPage),
+        ),
+      ),
+    ),
+  );
+  const button = [...host.querySelectorAll("button")].find(
+    (b) => b.textContent === "Stop",
+  )!;
+  await act(async () => button.click());
+  expect(mocks.post).toHaveBeenCalledWith(
+    "/api/processes/kill?machine=remote",
+    { pid: 42, mode: "term", startedAt: "identity" },
+    expect.objectContaining({ headers: { "X-Dockmaster-Lease": "grant" } }),
+  );
+  expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Homelab"));
+  confirm.mockRestore();
 });

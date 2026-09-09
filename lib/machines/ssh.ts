@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { HttpError } from "@/lib/http";
 import { randomUUID } from "node:crypto";
 import type { RemoteMachine } from "./config";
 import {
@@ -6,7 +7,8 @@ import {
   COMPANION_VERSION,
   VERSION,
   record,
-  validateResult,
+  parseResult,
+  type Action,
   type Operation,
   type Result,
   type Info,
@@ -41,6 +43,10 @@ export class SshConnection {
   private child: ChildProcessWithoutNullStreams | null = null;
   private pending = new Map<string, Pending>();
   private hello: Promise<Info> | null = null;
+  private session: string | null = null;
+  get currentSession() {
+    return this.child ? this.session : null;
+  }
   private idle?: ReturnType<typeof setTimeout>;
   private retryAt = 0;
   private failures = 0;
@@ -54,6 +60,7 @@ export class SshConnection {
     const child = this.child;
     this.child = null;
     this.hello = null;
+    this.session = null;
     clearTimeout(this.idle);
     if (failed) {
       this.failures++;
@@ -115,23 +122,34 @@ export class SshConnection {
             );
           const p = this.pending.get(msg.id);
           if (!p) throw new Error("Unexpected companion response ID.");
-          if (msg.error !== undefined)
-            throw new Error(
-              "Remote collection failed. Verify the companion version, runtime and target permissions.",
-            );
-          if (!validateResult(p.op, msg.result))
-            throw new Error(
-              "Malformed companion payload. Rebuild and install the matching companion.",
-            );
           clearTimeout(p.timer);
           this.pending.delete(msg.id);
-          p.resolve({
-            cachedAt: msg.result.cachedAt,
-            data: msg.result.data,
-            ...(msg.result.scanMs === undefined
-              ? {}
-              : { scanMs: msg.result.scanMs }),
-          });
+          if (msg.error !== undefined) {
+            if (
+              !record(msg.error) ||
+              typeof msg.error.code !== "number" ||
+              msg.error.code < 400 ||
+              msg.error.code > 599 ||
+              typeof msg.error.message !== "string" ||
+              msg.error.message.length > 1000
+            ) {
+              p.reject(new Error("Malformed companion error."));
+              throw new Error("Malformed companion error.");
+            }
+            p.reject(new HttpError(msg.error.code, msg.error.message));
+          } else {
+            try {
+              p.resolve(parseResult(p.op, msg.result));
+            } catch {
+              p.reject(
+                new Error(
+                  "Malformed companion payload. Install the matching companion.",
+                ),
+              );
+              throw new Error("Malformed companion payload.");
+            }
+          }
+          if (!this.pending.size) this.armIdle();
         });
       } catch (e) {
         fail(
@@ -142,11 +160,22 @@ export class SshConnection {
       }
     });
   }
-  private raw(op: Operation): Promise<Result> {
-    this.start();
+  private armIdle() {
     clearTimeout(this.idle);
     this.idle = setTimeout(() => this.close(), 45000);
     this.idle.unref?.();
+  }
+  private raw(op: Operation, force = false, params?: Action): Promise<Result> {
+    if (op === "action") {
+      if (!this.currentSession)
+        return Promise.reject(
+          new HttpError(
+            409,
+            "Connection changed. Refresh before performing an action.",
+          ),
+        );
+    } else this.start();
+    clearTimeout(this.idle);
     if (this.pending.size >= 8)
       return Promise.reject(new Error("Companion is busy. Retry shortly."));
     return new Promise((resolve, reject) => {
@@ -157,18 +186,27 @@ export class SshConnection {
             "SSH request timed out. The machine may be asleep or unreachable.",
             true,
           ),
-        this.timeoutMs,
+        op === "hello" || ["ports", "vitals"].includes(op)
+          ? this.timeoutMs
+          : Math.max(this.timeoutMs, op === "action" ? 45000 : 120000),
       );
       this.pending.set(id, { op, resolve, reject, timer });
       this.child!.stdin.write(
-        JSON.stringify({ v: VERSION, id, op }) + "\n",
+        JSON.stringify({
+          v: VERSION,
+          id,
+          op,
+          force,
+          ...(params ? { params, sessionId: this.session } : {}),
+        }) + "\n",
         (e) => {
           if (e) this.close("SSH disconnected.", true);
         },
       );
     });
   }
-  async request(op: Operation, _force = false): Promise<Result> {
+  async request(op: Operation, force = false): Promise<Result> {
+    if (op === "action") throw new Error("Use the explicit mutation method.");
     if (!this.hello)
       this.hello = this.raw("hello").then((r) => {
         const info = r.data as Info;
@@ -180,6 +218,7 @@ export class SshConnection {
           throw new Error(this.lastError);
         }
         this.failures = 0;
+        this.session = info.sessionId;
         return info;
       });
     const info = await this.hello;
@@ -189,6 +228,16 @@ export class SshConnection {
       throw new Error(
         `Unsupported capability: ${op}. This milestone requires macOS.`,
       );
-    return this.raw(op);
+    return this.raw(op, force);
+  }
+  mutate(params: Action, expectedSession: string): Promise<Result> {
+    if (this.currentSession !== expectedSession)
+      return Promise.reject(
+        new HttpError(
+          409,
+          "Connection changed. Refresh before performing an action.",
+        ),
+      );
+    return this.raw("action", false, params);
   }
 }

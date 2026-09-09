@@ -6,12 +6,13 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function killByPid(
   pid: number,
   mode: "term" | "kill",
+  expectedStartedAt?: string,
 ): Promise<{ ok: boolean; signaled: number[]; stillAlive: boolean }> {
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 1) {
     throw new HttpError(400, "pid must be an integer greater than 1.");
   }
   const sig = mode === "term" ? "SIGTERM" : "SIGKILL";
-  const { signaled } = await killProcessTree(pid, sig);
+  const { signaled } = await killProcessTree(pid, sig, expectedStartedAt);
 
   const deadline = Date.now() + (mode === "term" ? 3000 : 1000);
   let stillAlive = pidExists(pid);
