@@ -3,7 +3,7 @@ import {
   parseBoottime,
   parseLoadAvg,
   parseDf,
-  parseMemoryPressure,
+  parseMemory,
   parseBattery,
 } from "./vitals";
 
@@ -49,11 +49,25 @@ describe("parseDf", () => {
   });
 });
 
-describe("parseMemoryPressure", () => {
-  it("extracts the free percentage", () => {
-    expect(parseMemoryPressure("System-wide memory free percentage: 47%")).toBe(
-      47,
-    );
+describe("parseMemory", () => {
+  it("excludes reclaimable cache and honors the reported page size", () => {
+    for (const size of [4096, 16384]) {
+      const output = `Mach Virtual Memory Statistics: (page size of ${size} bytes)
+Pages free: 10.
+File-backed pages: 40.
+Pages purgeable: 5.
+Pages occupied by compressor: 20.`;
+      expect(parseMemory(output, 100 * size)).toEqual({
+        memUsedBytes: 45 * size,
+        memCachedBytes: 45 * size,
+        memFreePct: 10,
+      });
+      expect(parseMemory(output, 20 * size)).toBeNull();
+    }
+  });
+  it("reports unavailable for incomplete or malformed counters", () => {
+    expect(parseMemory("", 64 * 1024 ** 3)).toBeNull();
+    expect(parseMemory("page size of 16384 bytes\nPages free: 1.", 100000)).toBeNull();
   });
 });
 

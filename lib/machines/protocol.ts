@@ -8,7 +8,7 @@ import type { CheckResult } from "@/lib/health";
 import type { HostEntry } from "@/lib/hosts";
 import type { scanSecrets } from "@/lib/secrets";
 export const VERSION = 2;
-export const COMPANION_VERSION = "2.0.0";
+export const COMPANION_VERSION = "2.0.1";
 export const MAX_MESSAGE = 2 * 1024 * 1024;
 export const READ_OPERATIONS = [
   "ports",
@@ -136,6 +136,7 @@ const schemas = {
     cpuPct: num.max(100).nullable().optional(),
     memTotalBytes: num.optional(),
     memUsedBytes: num.optional(),
+    memCachedBytes: num.optional(),
   }),
   repos: z.object({
     root: str,

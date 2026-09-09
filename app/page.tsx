@@ -63,7 +63,7 @@ function vitalCells(v: Vitals): Array<{ label: string; value: string; alarm?: bo
       value: `${v.loadAvg[0].toFixed(2)} of ${v.cores} cores`,
       alarm: v.loadAvg[0] >= v.cores,
     },
-    v.memFreePct !== null && { label: "mem free", value: `${v.memFreePct}%` },
+    v.memFreePct !== null && { label: "unused RAM", value: `${v.memFreePct.toFixed(1)}%` },
     v.disk && {
       label: "disk",
       value: `${formatGb(v.disk.freeKb)} of ${formatGb(v.disk.totalKb)}`,

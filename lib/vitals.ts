@@ -7,6 +7,7 @@ export type Vitals = {
   cpuPct?: number | null;
   memTotalBytes?: number;
   memUsedBytes?: number;
+  memCachedBytes?: number;
   uptimeSeconds: number;
   loadAvg: [number, number, number] | null;
   // Load average only means anything next to the core count it competes for.
@@ -42,9 +43,21 @@ export function parseDf(output: string): Vitals["disk"] {
   return { freeKb, totalKb, usedPct };
 }
 
-export function parseMemoryPressure(output: string): number | null {
-  const pct = Number(output.match(/free percentage:\s*(\d+)%/i)?.[1]);
-  return Number.isFinite(pct) ? pct : null;
+// vm_stat reports the host page size (4 KiB on Intel, usually 16 KiB on Apple Silicon).
+// File-backed and purgeable pages are reclaimable cache, not application usage.
+export function parseMemory(output: string, total: number) {
+  const pageSize = Number(output.match(/page size of (\d+) bytes/)?.[1]);
+  const pages = (name: string) =>
+    Number(output.match(new RegExp(`^${name}:\\s+(\\d+)\\.`, "m"))?.[1]);
+  const free = pages("Pages free") * pageSize;
+  const cached = (pages("File-backed pages") + pages("Pages purgeable")) * pageSize;
+  if (![pageSize, free, cached, total].every(Number.isFinite) ||
+      pageSize <= 0 || total <= 0 || free + cached > total) return null;
+  return {
+    memUsedBytes: total - free - cached,
+    memCachedBytes: cached,
+    memFreePct: 100 * free / total,
+  };
 }
 
 // pmset -g batt: "Now drawing from 'AC Power'" then
@@ -85,7 +98,7 @@ async function sample(): Promise<Vitals> {
     exec(["/usr/sbin/sysctl", "-n", "kern.boottime"]),
     exec(["/usr/sbin/sysctl", "-n", "vm.loadavg"]),
     exec(["/bin/df", "-k", "/"]),
-    exec(["/usr/bin/memory_pressure", "-Q"]),
+    exec(["/usr/bin/vm_stat"]),
     exec(["/usr/bin/pmset", "-g", "batt"]),
   ]);
 
@@ -100,14 +113,16 @@ async function sample(): Promise<Vitals> {
     setTimeout(resolve, Math.max(0, 500 - (Date.now() - started))),
   );
   const sampledAt = new Date().toISOString();
+  const memTotalBytes = os.totalmem();
+  const memory = unwrap(memOut, (out) => parseMemory(out, memTotalBytes));
   return {
     cpuPct: cpuUsage(cpuBefore, os.cpus()),
-    memTotalBytes: os.totalmem(),
-    memUsedBytes: Math.max(0, os.totalmem() - os.freemem()),
+    memTotalBytes,
+    ...memory,
     uptimeSeconds: bootSec ? Math.max(0, Date.now() / 1000 - bootSec) : 0,
     loadAvg: unwrap(loadavg, parseLoadAvg),
     cores: os.cpus().length,
-    memFreePct: unwrap(memOut, parseMemoryPressure),
+    memFreePct: memory?.memFreePct ?? null,
     disk: unwrap(dfOut, parseDf),
     battery: unwrap(battOut, parseBattery),
     sampledAt,

@@ -33,8 +33,8 @@ export function RemoteHarbor() {
         ],
         [
           "Memory used / total",
-          v.memTotalBytes
-            ? `${((v.memUsedBytes || 0) / 1024 ** 3).toFixed(1)} / ${(v.memTotalBytes / 1024 ** 3).toFixed(1)} GB`
+          v.memTotalBytes && v.memUsedBytes != null
+            ? `${(v.memUsedBytes / 1024 ** 3).toFixed(1)} / ${(v.memTotalBytes / 1024 ** 3).toFixed(1)} GB`
             : "Unavailable",
         ],
         [
@@ -48,8 +48,8 @@ export function RemoteHarbor() {
             : "Unavailable",
         ],
         [
-          "Memory free",
-          v.memFreePct === null ? "Unavailable" : `${v.memFreePct}%`,
+          "Cached memory (reclaimable)",
+          v.memCachedBytes == null ? "Unavailable" : `${(v.memCachedBytes / 1024 ** 3).toFixed(1)} GB`,
         ],
         [
           "Disk free",
