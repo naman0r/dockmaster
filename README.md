@@ -25,6 +25,25 @@ what's on your machine, and it should be able to _safely_ act on it.
 
 Every scanning module can be switched off from its own page (persisted in `~/.dockmaster/settings.json`).
 
+## Repository and worktree shortcuts
+
+Repository rows break down modified, added, deleted, renamed, copied, conflicted,
+and untracked paths. Each tracked path is counted once, even if both staged and
+unstaged; untracked files and grouped folders have separate counts. These are
+path counts, not diff lines. Copy a repository path or open its GitHub origin
+from the row actions.
+
+Repositories default to newest commit first. The **Sort by** menu also offers
+oldest commit, name in either direction, tracked changes, untracked entries,
+unpushed commits, and commits behind the remote. The browser remembers your
+choice. Sorting uses existing scan data and makes no additional requests.
+
+Worktrees show their commit ID and any prune reason. **Find PRs** opens GitHub's
+branch-filtered PR search, including closed and merged PRs; it does not assert
+that a PR exists or fetch live PR status. These links use the local `origin`
+configuration with no GitHub API requests, credentials, or background polling.
+Repositories without a recognized GitHub origin keep their local actions.
+
 ## Quick navigation
 
 Press **⌘K** (or **Ctrl+K**) anywhere, or click **Search anything** in the sidebar.

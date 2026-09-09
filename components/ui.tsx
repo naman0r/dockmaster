@@ -154,7 +154,7 @@ export function SearchInput({
 }) {
   return (
     <input
-      className="search-icon w-full rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-[30px] pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
+      className="w-full rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] px-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
       type="search"
       value={value}
       onChange={(e) => onChange(e.target.value)}

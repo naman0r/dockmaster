@@ -1,4 +1,5 @@
 import path from "path";
+import { readGithubUrl } from "@/lib/git-remote";
 import { exec } from "@/lib/exec";
 import { HttpError } from "@/lib/http";
 import { mapLimit } from "@/lib/async";
@@ -21,6 +22,7 @@ export type StaleBranch = {
 };
 
 export type RepoWorktrees = {
+  githubUrl: string | null;
   name: string;
   path: string;
   worktrees: WorktreeEntry[];
@@ -143,6 +145,7 @@ export async function scanWorktrees(): Promise<RepoWorktrees[]> {
       const stale = await staleBranches(repoPath, current);
       if (worktrees.length <= 1 && stale.length === 0) return null;
       return {
+        githubUrl: await readGithubUrl(repoPath),
         name: path.basename(repoPath),
         path: repoPath,
         worktrees,

@@ -125,7 +125,6 @@ export function CommandPalette() {
         }}
         className="command-palette fixed inset-x-0 top-[15vh] m-0 mx-auto w-[min(640px,calc(100%-24px))] max-h-[75dvh] overflow-hidden rounded-2xl border border-line-bright bg-surface p-0 text-ink shadow-[0_30px_120px_#0009] backdrop:bg-black/65 backdrop:backdrop-blur-sm">
         <div className="flex items-center gap-3 border-b border-line px-5 py-4">
-          <span aria-hidden="true" className="font-mono text-accent">⌕</span>
           <input ref={input} role="combobox" aria-label="Search modules, projects, ports and notes" aria-expanded={open}
             aria-controls="command-results" aria-autocomplete="list" aria-activedescendant={results.length ? `command-option-${selected}` : undefined}
             value={query} onChange={(event) => { setQuery(event.target.value); setActive(0); }}

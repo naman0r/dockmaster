@@ -2,7 +2,7 @@
 
 import { targetId } from "@/lib/command-palette";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client/api";
 import { usePoll, usePaletteTarget } from "@/components/hooks";
 import {
@@ -16,19 +16,9 @@ import {
   useToast,
 } from "@/components/ui";
 
-type RepoRow = {
-  name: string;
-  path: string;
-  branch: string;
-  dirty: number;
-  ahead: number;
-  behind: number;
-  hasUpstream: boolean;
-  lastCommitIso: string;
-  lastCommitSubject: string;
-  staleBranches: number;
-  error: string;
-};
+import type { RepoRow } from "@/lib/repos/scan";
+import { CHANGE_LABELS, type ChangeCounts } from "@/lib/repos/status";
+import { REPO_SORTS, isRepoSort, sortRepos, type RepoSort } from "@/lib/repos/sort";
 
 type ReposSnapshot = {
   enabled: boolean;
@@ -54,6 +44,13 @@ export default function ReposPage() {
   const [snap, setSnap] = useState<ReposSnapshot | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<RepoSort>("recent");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("dockmaster:repo-sort");
+      if (isRepoSort(saved)) setSort(saved);
+    } catch { /* Sorting still works when browser storage is unavailable. */ }
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [enabled, setEnabled] = useState(true);
   const toast = useToast();
@@ -104,10 +101,8 @@ export default function ReposPage() {
           `${r.name} ${r.branch} ${r.path}`.toLowerCase().includes(needle),
         )
       : list;
-    return [...filtered].sort(
-      (a, b) => b.dirty - a.dirty || a.name.localeCompare(b.name),
-    );
-  }, [snap, query]);
+    return sortRepos(filtered, sort);
+  }, [snap, query, sort]);
 
   return (
     <>
@@ -116,13 +111,24 @@ export default function ReposPage() {
         title="Repository status board"
         description={`Every git repo under ${snap?.data?.root || "your dev root"}, ${
           snap?.data?.depth ?? 3
-        } levels deep. Answers "what was I doing".`}
+        } levels deep. Copy a local path or open a repository on GitHub.`}
         right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="basis-[260px] grow max-w-[420px]">
           <SearchInput value={query} onChange={setQuery} placeholder="name, branch, path…" />
         </div>
+        <label className="flex min-w-0 items-center gap-2 text-xs text-muted">
+          Sort by
+          <select value={sort} onChange={(event) => {
+            const next = event.target.value;
+            if (!isRepoSort(next)) return;
+            setSort(next);
+            try { localStorage.setItem("dockmaster:repo-sort", next); } catch { /* Optional preference. */ }
+          }} className="min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] text-xs text-ink outline-none focus:border-accent">
+            {Object.entries(REPO_SORTS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
         <Button busy={refreshing} onClick={forceRefresh}>
           {refreshing ? "Scanning…" : "Refresh"}
         </Button>
@@ -135,6 +141,11 @@ export default function ReposPage() {
         </span>
       </div>
       <ErrorNote message={error} />
+      <p className="mb-4 text-xs leading-relaxed text-muted">
+        Counts describe file paths, not changed lines. Each tracked path is counted once, including staged changes.
+        Untracked folders count as one entry each; their contents are not counted individually.
+        Commit counts compare against locally cached remote history.
+      </p>
       {snap?.enabled === false ? (
         <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
       ) : repos.length === 0 ? (
@@ -154,27 +165,46 @@ export default function ReposPage() {
               key={r.path}
               id={targetId("repo", r.path)}
               tabIndex={-1}
-              className="grid card-surface grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
+              className="grid card-surface grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_132px] items-center max-[1200px]:grid-cols-2 max-[600px]:grid-cols-1 gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
             >
-              <div className="min-w-0 truncate">
-                <strong>{r.name}</strong>
+              <div className="min-w-0">
+                <p className="mb-1 text-[10px] uppercase tracking-wider text-quiet">Repository</p>
+                <strong className="block truncate" title={r.name}>{r.name}</strong>
                 <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={r.path}>
                   {r.path}
                 </div>
               </div>
-              <div className="min-w-0 truncate">
-                <span className="font-mono text-muted">{r.branch}</span>
+              <div className="min-w-0">
+                <p className="mb-1 text-[10px] uppercase tracking-wider text-quiet">Branch / last commit</p>
+                <span className="block truncate font-mono text-sm text-muted" title={r.branch}>{r.branch}</span>
                 <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={r.lastCommitSubject}>
                   {r.lastCommitIso ? `${formatRelative(r.lastCommitIso)} · ${r.lastCommitSubject}` : "—"}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                {r.error ? <Badge variant="alarm">git error</Badge> : null}
-                {r.dirty > 0 ? <Badge variant="alarm">dirty {r.dirty}</Badge> : <Badge variant="quiet">clean</Badge>}
-                {r.ahead > 0 ? <Badge variant="scope">ahead {r.ahead}</Badge> : null}
-                {r.behind > 0 ? <Badge variant="scope">behind {r.behind}</Badge> : null}
-                {!r.hasUpstream && !r.error ? <Badge variant="quiet">no upstream</Badge> : null}
-                {r.staleBranches > 0 ? <Badge variant="scope">{r.staleBranches} stale</Badge> : null}
+              <div className="min-w-0">
+                <p className="mb-1.5 text-[10px] uppercase tracking-wider text-quiet">Status</p>
+                {r.error ? <p className="break-words text-xs text-alarm">Status unavailable: {r.error}</p> : (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(Object.entries(CHANGE_LABELS) as Array<[keyof ChangeCounts, string]>).map(([key, label]) => (
+                      r.changes[key] > 0 ? <Badge key={key} variant={key.startsWith("untracked") ? "scope" : "alarm"}>
+                        {r.changes[key].toLocaleString()} {r.changes[key] === 1 && key.startsWith("untracked") ? label.slice(0, -1) : label}
+                      </Badge> : null
+                    ))}
+                    {r.dirty === 0 ? <Badge variant="quiet">Working tree clean</Badge> : null}
+                    {r.ahead > 0 ? <Badge variant="scope">{r.ahead} unpushed {r.ahead === 1 ? "commit" : "commits"}</Badge> : null}
+                    {r.behind > 0 ? <Badge variant="scope">{r.behind} {r.behind === 1 ? "commit" : "commits"} behind remote</Badge> : null}
+                    {!r.hasUpstream ? <Badge variant="quiet">No tracking branch</Badge> : null}
+                    {r.staleBranches > 0 ? <Badge variant="scope">{r.staleBranches} {r.staleBranches === 1 ? "branch" : "branches"} inactive 30+ days</Badge> : null}
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col items-start gap-1.5">
+                <p className="text-[10px] uppercase tracking-wider text-quiet">Actions</p>
+                <Button onClick={async () => {
+                  try { await navigator.clipboard.writeText(r.path); toast("Repository path copied."); }
+                  catch { toast("Could not copy the path. Select and copy it from the row.", true); }
+                }}>Copy path</Button>
+                {r.githubUrl ? <a href={r.githubUrl} target="_blank" rel="noreferrer" className="rounded px-1 py-1 text-xs text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent">Open on GitHub ↗</a> : null}
               </div>
             </div>
           ))}

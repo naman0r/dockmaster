@@ -1,14 +1,18 @@
 import path from "path";
+import { parseChanges, type ChangeCounts } from "./status";
+import { readGithubUrl } from "@/lib/git-remote";
 import { exec } from "@/lib/exec";
 import { mapLimit } from "@/lib/async";
 import { findRepos } from "@/lib/walk";
 import { devRoot, walkDepth } from "@/lib/settings";
 
 export type RepoRow = {
+  githubUrl: string | null;
   name: string;
   path: string;
   branch: string;
   dirty: number;
+  changes: ChangeCounts;
   ahead: number;
   behind: number;
   hasUpstream: boolean;
@@ -57,10 +61,12 @@ const STALE_DAYS = 30;
 
 export async function scanRepo(repoPath: string): Promise<RepoRow> {
   const row: RepoRow = {
+    githubUrl: null,
     name: path.basename(repoPath),
     path: repoPath,
     branch: "",
     dirty: 0,
+    changes: parseChanges(""),
     ahead: 0,
     behind: 0,
     hasUpstream: false,
@@ -71,7 +77,7 @@ export async function scanRepo(repoPath: string): Promise<RepoRow> {
   };
   try {
     const status = await exec(
-      ["git", "-C", repoPath, "status", "--porcelain=v1", "-b"],
+      ["git", "-C", repoPath, "status", "--porcelain=v1", "--untracked-files=normal", "-b"],
       { timeoutMs: 5000 },
     );
     const lines = status.split("\n").filter(Boolean);
@@ -85,9 +91,10 @@ export async function scanRepo(repoPath: string): Promise<RepoRow> {
     } else {
       row.branch = "(unknown)";
     }
-    row.dirty = countDirty(status);
+    row.changes = parseChanges(status);
+    row.dirty = Object.values(row.changes).reduce((sum, n) => sum + n, 0);
 
-    const [refs, log] = await Promise.all([
+    const [refs, log, githubUrl] = await Promise.all([
       exec(
         [
           "git",
@@ -102,7 +109,9 @@ export async function scanRepo(repoPath: string): Promise<RepoRow> {
       exec(["git", "-C", repoPath, "log", "-1", "--format=%cI%x09%s"], {
         timeoutMs: 5000,
       }),
+      readGithubUrl(repoPath),
     ]);
+    row.githubUrl = githubUrl;
     const cutoff = Date.now() / 1000 - STALE_DAYS * 86400;
     row.staleBranches = parseBranchDates(refs).filter(
       (b) => b.date < cutoff && b.name !== row.branch,

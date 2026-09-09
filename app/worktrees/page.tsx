@@ -1,5 +1,6 @@
 "use client";
 
+import { branchPullRequestsUrl } from "@/lib/git-links";
 import { useCallback, useMemo, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client/api";
 import { usePoll } from "@/components/hooks";
@@ -31,6 +32,7 @@ type StaleBranch = {
 };
 
 type RepoWorktrees = {
+  githubUrl?: string | null;
   name: string;
   path: string;
   worktrees: WorktreeEntry[];
@@ -102,7 +104,7 @@ export default function WorktreesPage() {
   const repos = useMemo(() => {
     const list = snap?.data || [];
     const needle = query.trim().toLowerCase();
-    return needle ? list.filter((r) => `${r.name} ${r.path}`.toLowerCase().includes(needle)) : list;
+    return needle ? list.filter((r) => `${r.name} ${r.path} ${r.worktrees.map((wt) => wt.branch).join(" ")} ${r.staleBranches.map((b) => b.name).join(" ")}`.toLowerCase().includes(needle)) : list;
   }, [snap, query]);
 
   return (
@@ -115,13 +117,17 @@ export default function WorktreesPage() {
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="basis-[260px] grow max-w-[420px]">
-          <SearchInput value={query} onChange={setQuery} placeholder="repo name or path…" />
+          <SearchInput value={query} onChange={setQuery} placeholder="repo, branch or path…" />
         </div>
         <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}` : "scanning…"}
         </span>
       </div>
       <ErrorNote message={error} />
+      <p className="mb-4 text-xs leading-relaxed text-muted">
+        Find PRs opens GitHub results for a branch, including closed and merged PRs.
+        Links are available for repositories with a GitHub origin.
+      </p>
       {snap?.enabled === false ? (
         <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
       ) : repos.length === 0 ? (
@@ -132,10 +138,10 @@ export default function WorktreesPage() {
         />
       ) : (
         repos.map((repo) => (
-          <Card key={repo.path} className="p-[22px_24px]">
-            <div className="mb-3 flex items-baseline justify-between gap-3">
-              <div>
-                <h3>{repo.name}</h3>
+          <Card key={repo.path} className="mb-4 p-[22px_24px] max-[600px]:p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate">{repo.name}</h3>
                 <p className="mt-1 font-mono text-[11px] leading-relaxed text-quiet truncate">{repo.path}</p>
               </div>
               <Button
@@ -157,13 +163,20 @@ export default function WorktreesPage() {
               {repo.worktrees.map((wt) => (
                 <div
                   key={wt.path}
-                  className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
+                  className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center max-[700px]:grid-cols-[minmax(0,1fr)_auto] gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                 >
-                  <div className="min-w-0 truncate">
-                    <span className="font-mono text-muted">{wt.branch}</span>
+                  <div className="min-w-0 max-[700px]:col-span-2">
+                    <span className="block truncate font-mono text-muted" title={wt.branch}>{wt.branch}</span>
                     <div className="font-mono text-[11px] leading-relaxed text-quiet truncate" title={wt.path}>
                       {wt.path}
                     </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                      {wt.head ? <span className="font-mono text-quiet" title={wt.head}>Commit {wt.head.slice(0, 8)}</span> : null}
+                      {branchPullRequestsUrl(repo.githubUrl, wt.branch) ? (
+                        <a href={branchPullRequestsUrl(repo.githubUrl, wt.branch)!} target="_blank" rel="noreferrer" className="rounded text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent">Find PRs ↗</a>
+                      ) : null}
+                    </div>
+                    {wt.reason ? <p className="mt-1 whitespace-normal break-words text-xs text-alarm">{wt.reason}</p> : null}
                   </div>
                   <div className="flex gap-1.5">
                     {wt.isMain ? <Badge variant="scope">main</Badge> : null}
@@ -200,13 +213,16 @@ export default function WorktreesPage() {
                   {repo.staleBranches.map((b) => (
                     <div
                       key={b.name}
-                      className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
+                      className="grid card-surface grid-cols-[minmax(0,1fr)_auto_auto] items-center max-[700px]:grid-cols-[minmax(0,1fr)_auto] gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright"
                     >
-                      <div className="min-w-0 truncate">
-                        <span className="font-mono text-muted">{b.name}</span>
-                        <span className="ml-2.5 font-mono text-[11px] leading-relaxed text-quiet">
-                          {formatRelative(b.lastCommitIso)}
+                      <div className="min-w-0 max-[700px]:col-span-2">
+                        <span className="block truncate font-mono text-muted" title={b.name}>{b.name}</span>
+                        <span className="font-mono text-[11px] leading-relaxed text-quiet">
+                          Last commit {formatRelative(b.lastCommitIso)}
                         </span>
+                        {branchPullRequestsUrl(repo.githubUrl, b.name) ? (
+                          <a href={branchPullRequestsUrl(repo.githubUrl, b.name)!} target="_blank" rel="noreferrer" className="ml-3 rounded text-xs text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent">Find PRs ↗</a>
+                        ) : null}
                       </div>
                       <Badge variant={b.merged ? "quiet" : "alarm"}>
                         {b.merged ? "merged" : "unmerged"}
