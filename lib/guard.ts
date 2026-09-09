@@ -27,5 +27,22 @@ export function guard(req: Request): Response | null {
       { status: 401 },
     );
   }
+  const url = new URL(req.url);
+  const machine =
+    url.searchParams.get("machine") ||
+    req.headers.get("x-dockmaster-machine") ||
+    "local";
+  if (
+    machine !== "local" &&
+    !(
+      req.method === "GET" &&
+      ["/api/ports", "/api/vitals"].includes(url.pathname)
+    )
+  ) {
+    return Response.json(
+      { error: "This operation is local-only. Select This Mac." },
+      { status: 403 },
+    );
+  }
   return null;
 }

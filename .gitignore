@@ -7,3 +7,7 @@ out/
 *.tsbuildinfo
 .DS_Store
 __pycache__/
+
+dist/
+
+.next-remote/
