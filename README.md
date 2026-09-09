@@ -146,4 +146,4 @@ Contributions are welcome!
 
 ## Remote machines
 
-The initial SSH companion supports read-only Ports and system vitals on another Mac. Configure it in Settings → Machines; see [installation, operation, and validation notes](docs/remote-machines.md). Other modules remain local-only.
+Settings → Machines connects another Mac over SSH. Harbor, Ports, Repos, Worktrees, Processes, Health, Hosts, and Secrets support remote collection; guarded actions and loopback forwarding are available. Hosts application requires an optional explicitly installed privileged helper. Notepad stays shared and Logbook stays local-only. See [installation, operation, and validation notes](docs/remote-machines.md).
