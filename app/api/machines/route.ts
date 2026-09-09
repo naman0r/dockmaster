@@ -1,3 +1,4 @@
+import { closeMachineTunnels } from "@/lib/machines/tunnels";
 import { guard } from "@/lib/guard";
 import { readJsonBody } from "@/lib/http";
 import { LOCAL, readMachines, changeMachine } from "@/lib/machines/config";
@@ -25,8 +26,10 @@ export async function POST(req: Request) {
       typeof body === "object" &&
       "id" in body &&
       typeof body.id === "string"
-    )
+    ) {
       invalidateMachine(body.id);
+      closeMachineTunnels(body.id);
+    }
     return Response.json({ machines: [LOCAL, ...next] });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 400 });
@@ -39,6 +42,7 @@ export async function DELETE(req: Request) {
     const id = new URL(req.url).searchParams.get("id") || "";
     const next = await changeMachine(id, true);
     invalidateMachine(id);
+    closeMachineTunnels(id);
     return Response.json({ machines: [LOCAL, ...next] });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 400 });

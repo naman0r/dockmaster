@@ -198,7 +198,7 @@ it("renders remote listeners without misleading localhost links or unguarded act
   expect(
     [...host.querySelectorAll("button")].some((b) => b.textContent === "Stop"),
   ).toBe(false);
-  expect(host.textContent).toContain("Read-only");
+  expect(host.textContent).toContain("Protected");
 });
 
 it("keeps Notepad shared and available while a remote machine is selected", async () => {

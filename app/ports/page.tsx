@@ -1,10 +1,10 @@
 "use client";
 
-import { useMachine } from "@/components/machines";
+import { OpenRemotePort, TunnelList } from "@/components/port-tunnels";
 import { targetId } from "@/lib/command-palette";
 
 import { useCallback, useMemo, useState } from "react";
-import { apiGet, apiPost } from "@/lib/client/api";
+import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll, usePaletteTarget } from "@/components/hooks";
 import {
   Badge,
@@ -83,8 +83,7 @@ function searchable(s: Service): string {
 }
 
 export default function PortsPage() {
-  const { machine } = useMachine();
-  const remote = machine.id !== "local";
+  const { apiGet, apiPost, remote, machine, status, lease } = useMachineApi();
   const [snap, setSnap] = useState<PortsSnapshot | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -130,7 +129,6 @@ export default function PortsPage() {
 
   const requestStop = useCallback(
     async (service: Service, mode: "term" | "kill") => {
-      if (remote) return;
       const key = identity(service);
       if (mode === "kill") {
         const ok = window.confirm(
@@ -199,7 +197,7 @@ export default function PortsPage() {
         title="Listening berths"
         description={
           remote
-            ? `Listening ports on ${machine.name}. Remote opening and process actions are unavailable in this milestone.`
+            ? `Listening ports on ${machine.name}. Open through SSH or stop a process after target-side identity checks.`
             : "Every server holding a TCP port on this Mac. Stop sends SIGTERM to the whole process tree; force stop is a separate confirmed step, never automatic."
         }
         right={
@@ -234,6 +232,10 @@ export default function PortsPage() {
         </span>
       </div>
       <ErrorNote message={error} />
+      <div data-machine={machine.id}>
+        <MachineNotice status={status} />
+      </div>
+      {remote && <TunnelList />}
       <p role="status" className="text-xs text-muted">
         {error && snap?.data
           ? "Stale · last successful snapshot"
@@ -351,21 +353,25 @@ export default function PortsPage() {
                   ) : null}
                 </div>
                 <div className="flex min-w-[112px] flex-col justify-center gap-2 py-5 pl-2 pr-5 max-[810px]:col-span-full max-[810px]:flex-row max-[810px]:p-[0_18px_18px] max-[810px]:[&>*]:flex-1">
-                  <a
-                    className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border border-line-bright px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline outline-none transition-colors text-muted hover:border-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    href={remote ? undefined : `http://localhost:${s.port}/`}
-                    aria-disabled={remote}
-                    title={
-                      remote
-                        ? "Remote opening requires an SSH tunnel; not yet supported."
-                        : undefined
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {remote ? "Open unavailable" : "Open"}
-                  </a>
-                  {!remote && s.isStoppable ? (
+                  {remote ? (
+                    <OpenRemotePort service={s} lease={lease} />
+                  ) : (
+                    <a
+                      className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border border-line-bright px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline outline-none transition-colors text-muted hover:border-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      href={remote ? undefined : `http://localhost:${s.port}/`}
+                      aria-disabled={remote}
+                      title={
+                        remote
+                          ? "Remote opening requires an SSH tunnel; not yet supported."
+                          : undefined
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {remote ? "Open unavailable" : "Open"}
+                    </a>
+                  )}
+                  {s.isStoppable && (!remote || status.state === "ready") ? (
                     <Button
                       variant={force ? "force" : "stop"}
                       busy={busy}
@@ -384,7 +390,7 @@ export default function PortsPage() {
                       disabled
                       title="System, background, runtime bridge, or Dockmaster process"
                     >
-                      {remote ? "Read-only" : "Protected"}
+                      Protected
                     </Button>
                   )}
                 </div>
