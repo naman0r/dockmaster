@@ -143,3 +143,7 @@ Contributions are welcome!
 
 
 
+
+## Remote machines
+
+The initial SSH companion supports read-only Ports and system vitals on another Mac. Configure it in Settings → Machines; see [installation, operation, and validation notes](docs/remote-machines.md). Other modules remain local-only.
