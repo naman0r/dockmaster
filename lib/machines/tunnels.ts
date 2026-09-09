@@ -226,6 +226,7 @@ export function openTunnel(
   lease: string,
   payload: { pid: number; port: number; startedAt: string; localPort?: number },
 ) {
+  // ponytail: serialize setup for at most 20 mappings; use per-machine queues if needed.
   const task = (globalTunnels.dockmasterTunnelCreation || Promise.resolve())
     .catch(() => {})
     .then(() => create(machineId, lease, payload));

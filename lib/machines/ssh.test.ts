@@ -47,6 +47,27 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("SSH lifecycle", () => {
+  it("does not start an unhandshaken connection when SSH closes after hello", async () => {
+    const f = fake((r) => {
+      queueMicrotask(() => c.close());
+      return {
+        v: 2,
+        id: r.id,
+        result: { cachedAt: new Date().toISOString(), data: hello },
+      };
+    });
+    const c = connection(f);
+    await expect(c.request("ports")).rejects.toThrow(/Connection changed/);
+    expect(f.launch).toHaveBeenCalledTimes(1);
+  });
+  it("handles a broken SSH input pipe without an unhandled stream error", async () => {
+    const f = fake();
+    const c = connection(f);
+    const pending = expect(c.request("hello")).rejects.toThrow(/disconnected/);
+    f.child.stdin.emit("error", new Error("EPIPE"));
+    await pending;
+    expect(c.currentSession).toBeNull();
+  });
   it("handshakes once and reuses a connection for concurrent reads", async () => {
     const f = fake((r) => ({
       v: 2,

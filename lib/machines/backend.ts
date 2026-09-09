@@ -9,13 +9,9 @@ import {
   type Action,
   type ReadOperation,
   type MachineSnapshot,
-  type Operation,
   type Result,
 } from "./protocol";
-export interface MachineBackend {
-  request(op: Operation, force?: boolean): Promise<Result>;
-}
-const local: MachineBackend = { request: collect };
+const local = { request: collect };
 // Share across Next route bundles and development reloads in this Node process.
 const state = globalThis as typeof globalThis & {
   dockmasterMachinesV2?: Map<
@@ -125,8 +121,11 @@ export async function authorizeAction(
   id: string,
   module: ReadOperation,
   lease: string,
+  consume = false,
 ) {
   const entry = await backend(id);
+  if (module !== "vitals" && !(await moduleEnabled(module)))
+    throw new HttpError(403, "This module is disabled.");
   const grant = entry.leases.get(module);
   if (
     !(entry.connection instanceof SshConnection) ||
@@ -139,13 +138,14 @@ export async function authorizeAction(
       409,
       "Snapshot is stale or disconnected. Refresh this machine before acting.",
     );
+  // Check and consume without yielding so concurrent submissions cannot reuse a grant.
+  if (consume) entry.leases.delete(module);
   return { entry, grant, connection: entry.connection };
 }
 export async function machineAction(id: string, raw: Action, lease: string) {
   const action = actionSchema.parse(raw);
   const module = action.action.split(".")[0] as ReadOperation;
-  const { entry, grant, connection } = await authorizeAction(id, module, lease);
-  entry.leases.delete(module); // consume before sending: ambiguous failures are never replayed
+  const { entry, grant, connection } = await authorizeAction(id, module, lease, true);
   try {
     const result = await connection.mutate(action, grant.session);
     entry.snapshots.delete(module);

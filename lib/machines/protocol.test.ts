@@ -53,6 +53,8 @@ describe("companion protocol", () => {
       expect(() => validateMachine({ ...machine, destination })).toThrow();
     const args = sshArgs({ ...machine, companionPath: "/a b/'$(touch nope)" });
     expect(args).toContain("StrictHostKeyChecking=yes");
+    expect(args).toContain("ForwardAgent=no");
+    expect(args).toContain("ForwardX11=no");
     expect(args.at(-1)).toContain("'/a b/'\\''$(touch nope)'");
   });
 });

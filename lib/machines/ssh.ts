@@ -29,6 +29,10 @@ export function sshArgs(m: RemoteMachine): string[] {
     "ServerAliveCountMax=2",
     "-o",
     "ClearAllForwardings=yes",
+    "-o",
+    "ForwardAgent=no",
+    "-o",
+    "ForwardX11=no",
     m.destination,
     `exec ${quote(m.nodePath)} ${quote(m.companionPath)} ${quote(m.scanRoot)}`,
   ];
@@ -107,6 +111,7 @@ export class SshConnection {
     });
     c.on("error", () => fail("Unable to start /usr/bin/ssh."));
     c.on("close", () => fail(diagnostic));
+    c.stdin.on("error", () => fail("SSH disconnected."));
     c.stdout.on("data", (chunk: Buffer) => {
       if (this.child !== c) return;
       try {
@@ -128,6 +133,7 @@ export class SshConnection {
             if (
               !record(msg.error) ||
               typeof msg.error.code !== "number" ||
+              !Number.isInteger(msg.error.code) ||
               msg.error.code < 400 ||
               msg.error.code > 599 ||
               typeof msg.error.message !== "string" ||
@@ -166,15 +172,16 @@ export class SshConnection {
     this.idle.unref?.();
   }
   private raw(op: Operation, force = false, params?: Action): Promise<Result> {
-    if (op === "action") {
+    if (op === "hello") this.start();
+    else {
       if (!this.currentSession)
         return Promise.reject(
           new HttpError(
             409,
-            "Connection changed. Refresh before performing an action.",
+            "Connection changed. Refresh this machine before retrying.",
           ),
         );
-    } else this.start();
+    }
     clearTimeout(this.idle);
     if (this.pending.size >= 8)
       return Promise.reject(new Error("Companion is busy. Retry shortly."));
@@ -191,7 +198,8 @@ export class SshConnection {
           : Math.max(this.timeoutMs, op === "action" ? 45000 : 120000),
       );
       this.pending.set(id, { op, resolve, reject, timer });
-      this.child!.stdin.write(
+      const child = this.child!;
+      child.stdin.write(
         JSON.stringify({
           v: VERSION,
           id,
@@ -200,7 +208,7 @@ export class SshConnection {
           ...(params ? { params, sessionId: this.session } : {}),
         }) + "\n",
         (e) => {
-          if (e) this.close("SSH disconnected.", true);
+          if (e && this.child === child) this.close("SSH disconnected.", true);
         },
       );
     });
