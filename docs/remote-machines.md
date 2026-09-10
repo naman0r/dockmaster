@@ -62,7 +62,7 @@ Use these verified values:
 
 Save, Test connection, then select Homelab in the sidebar. Saving does not install or execute anything. Test connection explicitly executes the configured companion and reports hostname, OS, user, version, root, and capabilities. An updated companion requires Test connection or a coordinating backend restart to replace an existing session.
 
-Protocol and companion versions are now **2 / 2.0.1**. The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
+Protocol and companion versions are now **2 / 2.0.2**. The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
 
 Machine UUIDs persist independently of names/hostnames in `machines.json` under `DOCKMASTER_DATA_DIR` (default `~/.dockmaster`), written atomically with mode 0600. Existing module settings remain in `settings.json`. Module toggles currently apply dashboard-wide and are changed on This Mac. Selection persists per browser tab; Notepad stays shared.
 
@@ -146,3 +146,7 @@ Verified 2026-09-09 from `namanmacpro`, user `namanrusia`, checkout `/Users/nama
 Memory usage excludes file-backed and purgeable cache using macOS `vm_stat` counters. Cached memory is shown separately; unused RAM is physical free memory, not the `memory_pressure` free percentage. Values can differ slightly from Activity Monitor due to sampling and accounting. Rebuild and install companion 2.0.1 for this correction.
 
 Verified 2026-09-09 from `namanmacpro` through the guarded local API: homelab companion 2.0.1 reported 34.31 GiB used, 28.18 GiB cached, and 2.36% physical free memory. Installed at `/Users/namanrusia/Services/dockmaster/companion.cjs`; the previous bundle is saved beside it as `companion.cjs.before-memory-fix`. Only the Dockmaster companion connection was refreshed. Restoring the backup also requires the matching backend version. Activity Monitor comparison used the supplied screenshot, not simultaneous samples.
+
+Companion 2.0.2 collects process names and start times together and rejects PID reuse between CPU samples. Tunnel creation stays bound to the validated SSH configuration and rechecks authorization after binding the local port. Upgrade the companion for the process identity fix.
+
+Verified 2026-09-09: installed companion 2.0.2 on the homelab and refreshed only its Dockmaster connection. The guarded dashboard API returned 36 homelab and 39 local process rows with names and start identities. No processes were signaled. The previous homelab bundle is `companion.cjs.before-identity-fix` (rollback requires its matching backend). Configuration-change tunnel races are covered by isolated loopback tests.

@@ -127,7 +127,8 @@ async function create(
   lease: string,
   payload: { pid: number; port: number; startedAt: string; localPort?: number },
 ): Promise<TunnelInfo> {
-  const { connection } = await authorizeAction(machineId, "ports", lease);
+  const { connection, grant } = await authorizeAction(machineId, "ports", lease);
+  const machine = connection.machine;
   const result = await connection.request("ports", true);
   const services = (result.data as { services: Service[] }).services;
   const service = services.find(
@@ -141,8 +142,8 @@ async function create(
       409,
       "Listener identity changed. Refresh before opening it.",
     );
-  const machine = (await readMachines()).find((m) => m.id === machineId);
-  if (!machine) throw new HttpError(404, "Unknown machine.");
+  if (connection.currentSession !== grant.session)
+    throw new HttpError(409, "Machine connection changed. Refresh before opening it.");
   const address = targetAddress(service),
     key = JSON.stringify([
       machineId,
@@ -168,7 +169,7 @@ async function create(
     );
   let tunnel!: Tunnel;
   const server = net.createServer((socket) => {
-    if (tunnel.sockets.size >= 32) {
+    if (!tunnel || tunnel.sockets.size >= 32) {
       socket.destroy();
       return;
     }
@@ -200,6 +201,15 @@ async function create(
       );
     if ((e as NodeJS.ErrnoException).code !== "EADDRINUSE") throw e;
     await listen(0);
+  }
+  try {
+    // Configuration edits can happen while the loopback listener is binding.
+    const current = await authorizeAction(machineId, "ports", lease);
+    if (current.connection !== connection || connection.currentSession !== grant.session)
+      throw new HttpError(409, "Machine connection changed. Refresh before opening it.");
+  } catch (e) {
+    server.close();
+    throw e;
   }
   const localPort = (server.address() as net.AddressInfo).port;
   tunnel = {

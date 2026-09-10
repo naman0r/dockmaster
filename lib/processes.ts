@@ -1,5 +1,5 @@
 import os from "os";
-import { parseDetailOutput } from "@/lib/ports/scan";
+import { parseStartedAt } from "@/lib/ports/scan";
 import { ancestorChain, readProcessTable } from "@/lib/proctree";
 import { exec } from "@/lib/exec";
 
@@ -18,7 +18,7 @@ export type ProcessSample = {
 
 type RawSample = Map<
   number,
-  { uid: number; cputimeSec: number; rssKb: number; command: string }
+  { uid: number; cputimeSec: number; rssKb: number; command: string; startedAt: string }
 >;
 
 // "MM:SS.cc" or "HH:MM:SS.cc" → seconds.
@@ -34,7 +34,7 @@ export function parseSample(output: string): RawSample {
   const sample: RawSample = new Map();
   for (const line of output.split("\n")) {
     const tokens = line.trim().split(/\s+/);
-    if (tokens.length < 5) continue;
+    if (tokens.length < 10) continue;
     const pid = Number(tokens[0]);
     const uid = Number(tokens[1]);
     const cputimeSec = parseCputime(tokens[2]);
@@ -48,7 +48,8 @@ export function parseSample(output: string): RawSample {
       uid,
       cputimeSec,
       rssKb,
-      command: tokens.slice(4).join(" "),
+      command: tokens.slice(9).join(" "),
+      startedAt: parseStartedAt(tokens.slice(4, 9).join(" ")),
     });
   }
   return sample;
@@ -64,13 +65,17 @@ export function toRows(
   const intervalSec = intervalMs / 1000;
   for (const [pid, now] of second) {
     const before = first.get(pid);
-    if (!before) continue;
+    if (
+      !before || !now.startedAt ||
+      before.startedAt !== now.startedAt || before.uid !== now.uid
+    ) continue;
     const cpuPct = ((now.cputimeSec - before.cputimeSec) / intervalSec) * 100;
     rows.push({
       pid,
       uid: now.uid,
       user: users.get(now.uid) || String(now.uid),
       command: now.command,
+      startedAt: now.startedAt,
       cpuPct: Math.max(0, cpuPct),
       rssKb: now.rssKb,
     });
@@ -98,7 +103,7 @@ async function readUsernames(): Promise<Map<number, string>> {
   return users;
 }
 
-const PS_COLUMNS = ["pid=", "uid=", "cputime=", "rss=", "comm="];
+const PS_COLUMNS = ["pid=", "uid=", "cputime=", "rss=", "lstart=", "comm="];
 
 export async function sampleProcesses(): Promise<{
   sample: ProcessSample[];
@@ -112,16 +117,12 @@ export async function sampleProcesses(): Promise<{
   await new Promise((resolve) => setTimeout(resolve, intervalMs));
   const second = parseSample(await exec([PS, ...args]));
   const users = await readUsernames();
-  const details = parseDetailOutput(
-    await exec([PS, "-axo", "pid=,ppid=,uid=,lstart=,user=,command="]),
-  );
   const protectedPids = ancestorChain(process.pid, await readProcessTable());
   return {
     sample: toRows(first, second, intervalMs, users).map((row) => ({
       ...row,
-      startedAt: details.get(row.pid)?.startedAt || "",
       isStoppable:
-        !!details.get(row.pid)?.startedAt &&
+        !!row.startedAt &&
         row.uid === process.getuid!() &&
         row.pid > 1 &&
         !protectedPids.has(row.pid),
