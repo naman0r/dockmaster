@@ -169,6 +169,18 @@ const MODULES: ModuleCard[] = [
     },
   },
   {
+    href: "/disk",
+    glyph: "DK",
+    title: "Disk",
+    description: "Build artifacts and tool caches you can delete and regenerate.",
+    endpoint: "/api/disk",
+    metric: (s) => {
+      const kb = (s.data as { reclaimableKb?: number } | null)?.reclaimableKb ?? 0;
+      const gb = kb / 1024 / 1024;
+      return { value: gb >= 1 ? `${gb.toFixed(1)}G` : `${Math.round(kb / 1024)}M`, label: "reclaimable", tone: gb >= 20 ? "alarm" : undefined };
+    },
+  },
+  {
     href: "/logbook",
     glyph: "LB",
     title: "Logbook",

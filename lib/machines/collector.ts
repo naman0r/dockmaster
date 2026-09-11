@@ -7,6 +7,7 @@ import { scanWorktrees } from "@/lib/worktrees/scan";
 import { sampleProcesses } from "@/lib/processes";
 import { runAllChecks, resultsCache } from "@/lib/health";
 import { scanSecrets } from "@/lib/secrets";
+import { scanDisk, diskCache } from "@/lib/disk";
 import { devRoot } from "@/lib/settings";
 import { TtlCache } from "@/lib/cache";
 import { hostsSnapshot } from "./remote-hosts";
@@ -27,6 +28,7 @@ export function invalidateCollectors() {
   processes.invalidate();
   resultsCache.invalidate();
   secrets.invalidate();
+  diskCache.invalidate();
 }
 export async function collect(op: Operation, force = false): Promise<Result> {
   if (op === "hello")
@@ -63,5 +65,6 @@ export async function collect(op: Operation, force = false): Promise<Result> {
     return { cachedAt: new Date().toISOString(), data: await hostsSnapshot() };
   if (op === "secrets")
     return secrets.get(force, scanSecrets) as Promise<Result>;
+  if (op === "disk") return diskCache.get(force, scanDisk) as Promise<Result>;
   throw new Error("Unsupported operation.");
 }

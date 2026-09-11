@@ -14,6 +14,7 @@ Dockmaster runs its UI and coordinating backend on the main Mac, bound to loopba
 | Health | Checks stored and executed on the selected target; localhost means that target |
 | Hosts | Read and save/delete profiles; applying profiles requires the optional fixed privileged helper |
 | Secrets | Tracked-file scanning and complete preview redaction before results leave the target |
+| Disk | Artifact and cache measurement under the target's root and home; guarded clean of the same allowlisted paths |
 | Notepad | One shared notebook in the coordinating Mac’s data directory, independent of selection |
 | Logbook | Local-only, unchanged; remote selection shows that limitation |
 
@@ -62,7 +63,7 @@ Use these verified values:
 
 Save, Test connection, then select Homelab in the sidebar. Saving does not install or execute anything. Test connection explicitly executes the configured companion and reports hostname, OS, user, version, root, and capabilities. An updated companion requires Test connection or a coordinating backend restart to replace an existing session.
 
-Protocol and companion versions are now **2 / 2.0.2**. The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
+Protocol and companion versions are now **2 / 2.1.0**. The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
 
 Machine UUIDs persist independently of names/hostnames in `machines.json` under `DOCKMASTER_DATA_DIR` (default `~/.dockmaster`), written atomically with mode 0600. Existing module settings remain in `settings.json`. Module toggles currently apply dashboard-wide and are changed on This Mac. Selection persists per browser tab; Notepad stays shared.
 

@@ -33,6 +33,7 @@ export async function remoteRoute(req: Request): Promise<Response | null> {
     "/api/hosts/profiles": "hosts.save",
     "/api/hosts/delete": "hosts.delete",
     "/api/hosts/apply": "hosts.apply",
+    "/api/disk/clean": "disk.clean",
     "/api/health/checks":
       req.method === "DELETE" ? "health.remove" : "health.add",
   };
