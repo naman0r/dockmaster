@@ -16,8 +16,18 @@ export function usePoll(
   useEffect(() => {
     if (!enabled) return;
     let timer: number | undefined;
+    let running = false;
+    let disposed = false;
     const tick = () => {
-      if (!document.hidden) void ref.current();
+      if (document.hidden || running || disposed) return;
+      running = true;
+      void Promise.resolve()
+        .then(() => {
+          if (!disposed) return ref.current();
+        })
+        .finally(() => {
+          running = false;
+        });
     };
     tick();
     timer = window.setInterval(tick, intervalMs);
@@ -26,6 +36,7 @@ export function usePoll(
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -48,10 +59,17 @@ export function usePaletteTarget(data: unknown, reveal?: () => void): void {
       pending.current = "";
     };
     const navigate = (event?: Event) => {
-      const href = event instanceof CustomEvent ? String(event.detail) : window.location.href;
+      const href =
+        event instanceof CustomEvent
+          ? String(event.detail)
+          : window.location.href;
       const url = new URL(href, window.location.href);
       if (url.pathname !== window.location.pathname || !url.hash) return;
-      try { pending.current = decodeURIComponent(url.hash.slice(1)); } catch { return; }
+      try {
+        pending.current = decodeURIComponent(url.hash.slice(1));
+      } catch {
+        return;
+      }
       revealRef.current?.();
       // Wait for filters to clear and for modal focus restoration to finish.
       frame = requestAnimationFrame(scroll);

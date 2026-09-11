@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { apiGet, apiPost } from "@/lib/client/api";
+import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
   Badge,
@@ -33,6 +33,8 @@ type Snapshot = {
   enabled: boolean;
   cachedAt: string | null;
   data: {
+    canApply?: boolean;
+    revision?: string;
     entries: HostEntry[];
     profiles: ProfileLite[];
     activeProfile: string | null;
@@ -40,6 +42,7 @@ type Snapshot = {
 };
 
 export default function HostsPage() {
+  const { apiGet, apiPost, remote, machine, status } = useMachineApi();
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [profileName, setProfileName] = useState("");
@@ -59,7 +62,12 @@ export default function HostsPage() {
   usePoll(refresh, 20_000);
 
   const act = useCallback(
-    async (key: string, url: string, body: Record<string, unknown>, done: string) => {
+    async (
+      key: string,
+      url: string,
+      body: Record<string, unknown>,
+      done: string,
+    ) => {
       setBusy(key);
       try {
         await apiPost(url, body);
@@ -95,12 +103,38 @@ export default function HostsPage() {
       <PageHeader
         eyebrow="Charts"
         title="Hosts & DNS profiles"
-        description="/etc/hosts with switchable profiles. Applying a profile opens a macOS admin prompt, replaces the whole file, and always backs up the current one first."
-        right={<Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
+        description={
+          remote
+            ? "Hosts and profiles on this machine. Applying a profile uses the optional privileged helper and backs up the current file."
+            : "/etc/hosts with switchable profiles. Applying a profile opens a macOS admin prompt, replaces the whole file, and always backs up the current one first."
+        }
+        right={
+          !remote && (
+            <Toggle
+              checked={enabled}
+              onChange={toggleModule}
+              label="Module on"
+            />
+          )
+        }
       />
       <ErrorNote message={error} />
+      <div data-machine={machine.id}>
+        <MachineNotice status={status} />
+      </div>
+      {remote && !snap?.data?.canApply && (
+        <p className="mb-4 text-sm text-muted">
+          Remote profile application requires the optional Hosts helper. Reading
+          and saving profiles are available. See docs/remote-machines.md for
+          installation.
+        </p>
+      )}
       {snap?.enabled === false ? (
-        <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
+        <EmptyState
+          glyph="[x]"
+          title="Module off"
+          hint="Switch it back on above."
+        />
       ) : !data ? (
         <EmptyState glyph="[…]" title="Reading /etc/hosts" />
       ) : (
@@ -108,7 +142,9 @@ export default function HostsPage() {
           <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Current /etc/hosts</span>
             <span className="text-quiet tracking-[0.08em]">
-              {data.activeProfile ? `active profile: ${data.activeProfile}` : "no profile active"}
+              {data.activeProfile
+                ? `active profile: ${data.activeProfile}`
+                : "no profile active"}
             </span>
           </div>
           <Card className="p-[22px_24px]">
@@ -120,10 +156,14 @@ export default function HostsPage() {
                   title={e.raw}
                 >
                   {!e.enabled ? <span className="text-quiet">off </span> : null}
-                  <span className={e.enabled ? "text-accent" : undefined}>{e.ip || "—"}</span>
+                  <span className={e.enabled ? "text-accent" : undefined}>
+                    {e.ip || "—"}
+                  </span>
                   {"  "}
                   <span className="text-muted">{e.hostnames.join(" ")}</span>
-                  {e.comment ? <span className="text-quiet"> {e.comment}</span> : null}
+                  {e.comment ? (
+                    <span className="text-quiet"> {e.comment}</span>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -131,10 +171,14 @@ export default function HostsPage() {
 
           <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Profiles</span>
-            <span className="text-quiet tracking-[0.08em]">{data.profiles.length} saved</span>
+            <span className="text-quiet tracking-[0.08em]">
+              {data.profiles.length} saved
+            </span>
           </div>
           <Card className="p-[22px_24px]">
-            <div className={`flex flex-wrap items-center gap-3 ${data.profiles.length ? "mb-3.5" : "mb-0"}`}>
+            <div
+              className={`flex flex-wrap items-center gap-3 ${data.profiles.length ? "mb-3.5" : "mb-0"}`}
+            >
               <input
                 className="max-w-[260px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
                 value={profileName}
@@ -159,8 +203,8 @@ export default function HostsPage() {
             </div>
             {data.profiles.length === 0 ? (
               <p className="m-0 font-mono text-[11px] leading-relaxed text-quiet">
-                No profiles yet. &quot;Save current&quot; snapshots the live /etc/hosts; apply any
-                profile to switch back and forth.
+                No profiles yet. &quot;Save current&quot; snapshots the live
+                /etc/hosts; apply any profile to switch back and forth.
               </p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -172,13 +216,22 @@ export default function HostsPage() {
                     <div className="truncate">
                       <strong>{p.name}</strong>
                       <span className="ml-2.5 font-mono text-[11px] leading-relaxed text-quiet">
-                        {p.lineCount} lines · {new Date(p.createdAt).toLocaleDateString()}
+                        {p.lineCount} lines ·{" "}
+                        {new Date(p.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    {data.activeProfile === p.name ? <Badge variant="quiet">active</Badge> : <span />}
+                    {data.activeProfile === p.name ? (
+                      <Badge variant="quiet">active</Badge>
+                    ) : (
+                      <span />
+                    )}
                     <Button
                       variant="force"
                       busy={busy === `apply:${p.id}`}
+                      disabled={
+                        remote &&
+                        (!snap?.data?.canApply || status.state !== "ready")
+                      }
                       onClick={() => {
                         if (
                           !window.confirm(
@@ -186,7 +239,12 @@ export default function HostsPage() {
                           )
                         )
                           return;
-                        void act("apply:" + p.id, "/api/hosts/apply", { id: p.id }, `Applied ${p.name}.`);
+                        void act(
+                          "apply:" + p.id,
+                          "/api/hosts/apply",
+                          { id: p.id },
+                          `Applied ${p.name}.`,
+                        );
                       }}
                     >
                       Apply
@@ -195,8 +253,14 @@ export default function HostsPage() {
                       variant="ghost"
                       busy={busy === `del:${p.id}`}
                       onClick={() => {
-                        if (!window.confirm(`Delete profile "${p.name}"?`)) return;
-                        void act("del:" + p.id, "/api/hosts/delete", { id: p.id }, "Profile deleted.");
+                        if (!window.confirm(`Delete profile "${p.name}"?`))
+                          return;
+                        void act(
+                          "del:" + p.id,
+                          "/api/hosts/delete",
+                          { id: p.id },
+                          "Profile deleted.",
+                        );
                       }}
                     >
                       Delete
@@ -207,8 +271,8 @@ export default function HostsPage() {
             )}
           </Card>
           <p className="mt-3 font-mono text-[11px] leading-relaxed text-quiet">
-            Backups land in ~/.dockmaster/hosts-backups/ before every apply. DNS cache is flushed
-            after each write.
+            Backups land in ~/.dockmaster/hosts-backups/ before every apply. DNS
+            cache is flushed after each write.
           </p>
         </>
       )}

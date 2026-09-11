@@ -1,12 +1,30 @@
 # Dockmaster
 
-Local dev dashboard for macOS: one console for everything running on your machine.
+**Know what’s running on your Mac and your homelab.**
+
+Find stray dev servers, inspect repos and worktrees, and check system health from one local dashboard.
 
 Dockmaster grew out of [Port Authority](legacy/port_authority.py) — the single-file port
 dashboard now lives in `legacy/` for reference. The idea scaled: a dev tool should know
 what's on your machine, and it should be able to _safely_ act on it.
 
 **view images at the end of the README**
+
+## Setup
+
+The easiest way to set up Dockmaster is to ask your coding agent. Copy this prompt:
+
+```text
+Set up Dockmaster on this Mac: https://github.com/naman0r/dockmaster
+
+Clone the repo or use an existing checkout, read the README, and check the
+requirements. Install dependencies, configure my development root, build and
+start the production app on loopback, and verify it works. Give me the URL
+and explain how to start and stop it. If I want to connect a homelab, follow
+docs/remote-machines.md using my existing SSH access.
+```
+
+Prefer doing it yourself? See [Run it](#run-it) below.
 
 ## Modules
 
@@ -143,3 +161,7 @@ Contributions are welcome!
 
 
 
+
+## Remote machines
+
+Settings → Machines connects another Mac over SSH. Harbor, Ports, Repos, Worktrees, Processes, Health, Hosts, and Secrets support remote collection; guarded actions and loopback forwarding are available. Hosts application requires an optional explicitly installed privileged helper. Notepad stays shared and Logbook stays local-only. See [installation, operation, and validation notes](docs/remote-machines.md).

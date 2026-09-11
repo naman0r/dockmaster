@@ -18,7 +18,12 @@ function validate(payload: unknown): StopPayload {
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 1) {
     throw new HttpError(400, "pid must be an integer greater than 1.");
   }
-  if (typeof port !== "number" || !Number.isInteger(port) || port < 1 || port > 65535) {
+  if (
+    typeof port !== "number" ||
+    !Number.isInteger(port) ||
+    port < 1 ||
+    port > 65535
+  ) {
     throw new HttpError(400, "port must be an integer from 1 to 65535.");
   }
   if (typeof startedAt !== "string" || !startedAt) {
@@ -32,7 +37,10 @@ function validate(payload: unknown): StopPayload {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function stopService(payload: unknown): Promise<{
+export async function stopService(
+  payload: unknown,
+  verifyTreeIdentity = false,
+): Promise<{
   ok: boolean;
   mode: string;
   signaled: number[];
@@ -44,7 +52,10 @@ export async function stopService(payload: unknown): Promise<{
   // recycled PID. startedAt doubles as the PID-reuse guard.
   const fresh = await scanServices(true);
   const service = fresh.services.find(
-    (s) => s.pid === target.pid && s.port === target.port && s.startedAt === target.startedAt,
+    (s) =>
+      s.pid === target.pid &&
+      s.port === target.port &&
+      s.startedAt === target.startedAt,
   );
   if (!service) {
     throw new HttpError(
@@ -53,7 +64,10 @@ export async function stopService(payload: unknown): Promise<{
     );
   }
   if (!service.isStoppable) {
-    throw new HttpError(403, "That process is protected and cannot be stopped here.");
+    throw new HttpError(
+      403,
+      "That process is protected and cannot be stopped here.",
+    );
   }
 
   const table = await readProcessTable();
@@ -65,7 +79,11 @@ export async function stopService(payload: unknown): Promise<{
   }
 
   const sig = target.mode === "term" ? "SIGTERM" : "SIGKILL";
-  const { signaled } = await killProcessTree(target.pid, sig);
+  const { signaled } = await killProcessTree(
+    target.pid,
+    sig,
+    verifyTreeIdentity ? target.startedAt : undefined,
+  );
 
   const timeoutMs = target.mode === "term" ? 3000 : 1000;
   const deadline = Date.now() + timeoutMs;

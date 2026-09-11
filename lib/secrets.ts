@@ -23,21 +23,53 @@ export type Finding = {
   length: number;
 };
 
-const PLACEHOLDER = /(\$\{[^}]*\}|<[^>]*>|your[-_]|changeme|example|xxx|todo|insert[-_])/i;
+const PLACEHOLDER =
+  /(\$\{[^}]*\}|<[^>]*>|your[-_]|changeme|example|xxx|todo|insert[-_])/i;
 
 export const RULES: SecretRule[] = [
-  { id: "aws-access-key", label: "AWS access key", pattern: /\bAKIA[0-9A-Z]{16}\b/, severity: "high" },
-  { id: "slack-token", label: "Slack token", pattern: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/, severity: "high" },
-  { id: "github-pat", label: "GitHub token", pattern: /\bgh[pousr]_[A-Za-z0-9]{30,}\b/, severity: "high" },
-  { id: "private-key", label: "Private key block", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/, severity: "high" },
-  { id: "openai-key", label: "OpenAI-style key", pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/, severity: "high" },
-  { id: "google-api-key", label: "Google API key", pattern: /\bAIza[0-9A-Za-z_-]{35}\b/, severity: "high" },
+  {
+    id: "aws-access-key",
+    label: "AWS access key",
+    pattern: /\bAKIA[0-9A-Z]{16}\b/,
+    severity: "high",
+  },
+  {
+    id: "slack-token",
+    label: "Slack token",
+    pattern: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/,
+    severity: "high",
+  },
+  {
+    id: "github-pat",
+    label: "GitHub token",
+    pattern: /\bgh[pousr]_[A-Za-z0-9]{30,}\b/,
+    severity: "high",
+  },
+  {
+    id: "private-key",
+    label: "Private key block",
+    pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+    severity: "high",
+  },
+  {
+    id: "openai-key",
+    label: "OpenAI-style key",
+    pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/,
+    severity: "high",
+  },
+  {
+    id: "google-api-key",
+    label: "Google API key",
+    pattern: /\bAIza[0-9A-Za-z_-]{35}\b/,
+    severity: "high",
+  },
   {
     id: "generic-secret",
     label: "Secret-looking assignment",
     // Lookbehind blocks letter-prefixed words (notasecret) while still
     // matching keys like DB_PASSWORD or apiKey.
-    pattern: /(?<![a-z])(password|passwd|secret|api_?key|auth_?token)\s*[:=]\s*['"][^'"]{8,}['"]/i,
+    pattern:
+      /(?<![a-z])(password|passwd|secret|api_?key|auth_?token)\s*[:=]\s*['"][^'"]{8,}['"]/i,
     severity: "warning",
   },
 ];
@@ -47,7 +79,15 @@ export function redact(secret: string): string {
   return `${secret.slice(0, 4)}… (${secret.length} chars)`;
 }
 
-export function matchLine(line: string): Array<{ ruleId: string; ruleLabel: string; severity: "high" | "warning"; preview: string; length: number }> {
+export function matchLine(
+  line: string,
+): Array<{
+  ruleId: string;
+  ruleLabel: string;
+  severity: "high" | "warning";
+  preview: string;
+  length: number;
+}> {
   const hits: ReturnType<typeof matchLine> = [];
   for (const rule of RULES) {
     const match = rule.pattern.exec(line);
@@ -64,7 +104,8 @@ export function matchLine(line: string): Array<{ ruleId: string; ruleLabel: stri
   return hits;
 }
 
-const INTERESTING = /(^\.env|\.env$|\.env\.|\.pem$|\.key$|id_rsa|settings\.py$|compose.*\.ya?ml$|(^|\/)(config|conf)\.[a-z]+$)/i;
+const INTERESTING =
+  /(^\.env|\.env$|\.env\.|\.pem$|\.key$|id_rsa|settings\.py$|compose.*\.ya?ml$|(^|\/)(config|conf)\.[a-z]+$)/i;
 
 export function isInterestingFile(relPath: string): boolean {
   const base = path.basename(relPath).toLowerCase();
@@ -73,7 +114,10 @@ export function isInterestingFile(relPath: string): boolean {
   if (base === "settings.py") return true;
   if (/compose.*\.ya?ml$/.test(base)) return true;
   if (INTERESTING.test(relPath)) return true;
-  return /\.(ya?ml|toml|ini|json|properties)$/.test(base) && relPath.split(path.sep).includes("config");
+  return (
+    /\.(ya?ml|toml|ini|json|properties)$/.test(base) &&
+    relPath.split(path.sep).includes("config")
+  );
 }
 
 const MAX_FILE_BYTES = 512 * 1024;
@@ -85,19 +129,25 @@ async function scanRepo(repoPath: string): Promise<RepoResult> {
   const result: RepoResult = { findings: [], untrackedEnv: [] };
   let tracked: string[];
   try {
-    const out = await exec(["git", "-C", repoPath, "ls-files"], { timeoutMs: 8000 });
+    const out = await exec(["git", "-C", repoPath, "ls-files"], {
+      timeoutMs: 8000,
+    });
     tracked = out.split("\n").filter(Boolean);
   } catch {
     return result;
   }
   const trackedSet = new Set(tracked);
 
-  const candidates = tracked.filter(isInterestingFile).slice(0, MAX_FILES_PER_REPO);
+  const candidates = tracked
+    .filter(isInterestingFile)
+    .slice(0, MAX_FILES_PER_REPO);
 
   // .env-style files sitting in the worktree but NOT committed are the good ones.
   let entries: string[] = [];
   try {
-    entries = (await fs.readdir(repoPath)).filter((name) => name.startsWith(".env") || name.endsWith(".env"));
+    entries = (await fs.readdir(repoPath)).filter(
+      (name) => name.startsWith(".env") || name.endsWith(".env"),
+    );
   } catch {
     // Repo directory unreadable; tracked scan above already failed silently.
   }
@@ -106,7 +156,13 @@ async function scanRepo(repoPath: string): Promise<RepoResult> {
   await mapLimit(candidates, 8, async (rel) => {
     const full = path.join(repoPath, rel);
     try {
-      const stat = await fs.stat(full);
+      const stat = await fs.lstat(full);
+      if (!stat.isFile() || stat.isSymbolicLink()) return;
+      const [realRoot, realFile] = await Promise.all([
+        fs.realpath(repoPath),
+        fs.realpath(full),
+      ]);
+      if (!realFile.startsWith(realRoot + path.sep)) return;
       if (stat.size > MAX_FILE_BYTES) return;
       const [head, content] = await Promise.all([
         fs.open(full, "r").then(async (handle) => {
@@ -158,7 +214,10 @@ export async function scanSecrets(): Promise<{
     scannedRepos: repoPaths.length,
     findings,
     untrackedEnvFiles: results.flatMap((r, i) =>
-      r.untrackedEnv.map((p) => ({ repo: path.basename(repoPaths[i]), path: p })),
+      r.untrackedEnv.map((p) => ({
+        repo: path.basename(repoPaths[i]),
+        path: p,
+      })),
     ),
   };
 }

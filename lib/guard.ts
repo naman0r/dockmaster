@@ -1,3 +1,4 @@
+import { remoteRouteAllowed } from "./machines/allowlist";
 import crypto from "crypto";
 import { getToken } from "./token";
 
@@ -25,6 +26,17 @@ export function guard(req: Request): Response | null {
     return Response.json(
       { error: "Missing or invalid local request token." },
       { status: 401 },
+    );
+  }
+  const url = new URL(req.url);
+  const machine =
+    url.searchParams.get("machine") ||
+    req.headers.get("x-dockmaster-machine") ||
+    "local";
+  if (machine !== "local" && !remoteRouteAllowed(req.method, url.pathname)) {
+    return Response.json(
+      { error: "This operation is local-only. Select This Mac." },
+      { status: 403 },
     );
   }
   return null;

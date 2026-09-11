@@ -1,20 +1,24 @@
-import { guard } from "@/lib/guard";
 import { errorJson } from "@/lib/http";
-import { moduleEnabled } from "@/lib/settings";
-import { snapshot, disabledSnapshot } from "@/lib/types";
-import { scanServices } from "@/lib/ports/scan";
-
+import { machineSnapshot } from "@/lib/machines/backend";
+import { guard } from "@/lib/guard";
 export async function GET(req: Request) {
   const denied = guard(req);
   if (denied) return denied;
+  const url = new URL(req.url);
+  const machine =
+    url.searchParams.get("machine") ||
+    req.headers.get("x-dockmaster-machine") ||
+    "local";
   try {
-    if (!(await moduleEnabled("ports"))) {
-      return Response.json(disabledSnapshot());
-    }
-    const force = new URL(req.url).searchParams.get("force") === "1";
-    const { services, cachedAt, scanMs } = await scanServices(force);
-    return Response.json(snapshot(true, { data: { services }, cachedAt, scanMs }));
-  } catch (err) {
-    return errorJson(err);
+    return Response.json(
+      await machineSnapshot(
+        machine,
+        "ports",
+        url.searchParams.get("force") === "1",
+      ),
+    );
+  } catch (e) {
+    if (machine === "local") return errorJson(e);
+    return Response.json({ error: (e as Error).message }, { status: 400 });
   }
 }

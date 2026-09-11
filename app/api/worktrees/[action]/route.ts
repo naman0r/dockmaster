@@ -1,11 +1,21 @@
+import { remoteRoute } from "@/lib/machines/routes";
 import { guard } from "@/lib/guard";
 import { errorJson, readJsonBody, asString, asBool } from "@/lib/http";
-import { removeWorktree, pruneWorktrees, deleteBranch } from "@/lib/worktrees/scan";
+import {
+  removeWorktree,
+  pruneWorktrees,
+  deleteBranch,
+} from "@/lib/worktrees/scan";
 
-export async function POST(req: Request, ctx: { params: Promise<{ action: string }> }) {
+export async function POST(
+  req: Request,
+  ctx: { params: Promise<{ action: string }> },
+) {
   const denied = guard(req);
   if (denied) return denied;
   try {
+    const remote = await remoteRoute(req);
+    if (remote) return remote;
     const { action } = await ctx.params;
     if (!["remove", "prune", "delete-branch"].includes(action)) {
       return Response.json({ error: "Not found." }, { status: 404 });
@@ -21,7 +31,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ action: string
       return Response.json({ ok: true });
     }
     if (action === "prune") {
-      return Response.json({ ok: true, pruned: await pruneWorktrees(repoPath) });
+      return Response.json({
+        ok: true,
+        pruned: await pruneWorktrees(repoPath),
+      });
     }
     return Response.json({
       ok: true,

@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import crypto from "node:crypto";
 import path from "path";
 import { readGithubUrl } from "@/lib/git-remote";
 import { exec } from "@/lib/exec";
@@ -22,6 +24,7 @@ export type StaleBranch = {
 };
 
 export type RepoWorktrees = {
+  revision?: string;
   githubUrl: string | null;
   name: string;
   path: string;
@@ -55,14 +58,17 @@ export function parseWorktreeList(output: string): WorktreeEntry[] {
     const value = rest.join(" ");
     if (key === "worktree") current.path = value;
     else if (key === "HEAD") current.head = value;
-    else if (key === "branch") current.branch = value.replace(/^refs\/heads\//, "");
+    else if (key === "branch")
+      current.branch = value.replace(/^refs\/heads\//, "");
     else if (key === "prunable") current.prunableReason = value;
   }
   flush();
   return entries;
 }
 
-export function parseBranchRefs(output: string): Array<{ name: string; dateUnix: number }> {
+export function parseBranchRefs(
+  output: string,
+): Array<{ name: string; dateUnix: number }> {
   return output
     .split("\n")
     .filter(Boolean)
@@ -75,7 +81,10 @@ export function parseBranchRefs(output: string): Array<{ name: string; dateUnix:
 
 const STALE_DAYS = 30;
 
-async function staleBranches(repoPath: string, currentBranch: string): Promise<StaleBranch[]> {
+async function staleBranches(
+  repoPath: string,
+  currentBranch: string,
+): Promise<StaleBranch[]> {
   const refs = await exec(
     [
       "git",
@@ -112,9 +121,12 @@ async function staleBranches(repoPath: string, currentBranch: string): Promise<S
 }
 
 async function defaultBranchOf(repoPath: string): Promise<string> {
-  const head = await exec(["git", "-C", repoPath, "symbolic-ref", "--short", "HEAD"], {
-    timeoutMs: 3000,
-  }).catch(() => "");
+  const head = await exec(
+    ["git", "-C", repoPath, "symbolic-ref", "--short", "HEAD"],
+    {
+      timeoutMs: 3000,
+    },
+  ).catch(() => "");
   const current = head.trim();
   if (current && current !== "HEAD") return current;
   const main = await exec(
@@ -125,36 +137,51 @@ async function defaultBranchOf(repoPath: string): Promise<string> {
 }
 
 // True when every commit of `branch` is reachable from `into`.
-async function isAncestor(repoPath: string, branch: string, into: string): Promise<boolean> {
-  const count = await exec(["git", "-C", repoPath, "rev-list", "--count", `${into}..${branch}`], {
-    timeoutMs: 8000,
-  });
+async function isAncestor(
+  repoPath: string,
+  branch: string,
+  into: string,
+): Promise<boolean> {
+  const count = await exec(
+    ["git", "-C", repoPath, "rev-list", "--count", `${into}..${branch}`],
+    {
+      timeoutMs: 8000,
+    },
+  );
   return Number(count.trim()) === 0;
 }
 
 export async function scanWorktrees(): Promise<RepoWorktrees[]> {
   const root = devRoot();
   const repoPaths = await findRepos(root, walkDepth());
-  const results = await mapLimit(repoPaths, 6, async (repoPath): Promise<RepoWorktrees | null> => {
-    try {
-      const list = await exec(["git", "-C", repoPath, "worktree", "list", "--porcelain"], {
-        timeoutMs: 5000,
-      });
-      const worktrees = parseWorktreeList(list);
-      const current = worktrees[0]?.branch || "";
-      const stale = await staleBranches(repoPath, current);
-      if (worktrees.length <= 1 && stale.length === 0) return null;
-      return {
-        githubUrl: await readGithubUrl(repoPath),
-        name: path.basename(repoPath),
-        path: repoPath,
-        worktrees,
-        staleBranches: stale,
-      };
-    } catch {
-      return null;
-    }
-  });
+  const results = await mapLimit(
+    repoPaths,
+    6,
+    async (repoPath): Promise<RepoWorktrees | null> => {
+      try {
+        const list = await exec(
+          ["git", "-C", repoPath, "worktree", "list", "--porcelain"],
+          {
+            timeoutMs: 5000,
+          },
+        );
+        const worktrees = parseWorktreeList(list);
+        const current = worktrees[0]?.branch || "";
+        const stale = await staleBranches(repoPath, current);
+        if (worktrees.length <= 1 && stale.length === 0) return null;
+        return {
+          revision: await worktreeRevision(repoPath),
+          githubUrl: await readGithubUrl(repoPath),
+          name: path.basename(repoPath),
+          path: repoPath,
+          worktrees,
+          staleBranches: stale,
+        };
+      } catch {
+        return null;
+      }
+    },
+  );
   return results.filter((r): r is RepoWorktrees => r !== null);
 }
 
@@ -163,7 +190,10 @@ export async function scanWorktrees(): Promise<RepoWorktrees[]> {
 function assertInsideDevRoot(target: string, root: string): void {
   const resolved = path.resolve(target);
   const resolvedRoot = path.resolve(root);
-  if (resolved !== resolvedRoot && !resolved.startsWith(resolvedRoot + path.sep)) {
+  if (
+    resolved !== resolvedRoot &&
+    !resolved.startsWith(resolvedRoot + path.sep)
+  ) {
     throw new HttpError(403, "Path is outside the configured dev root.");
   }
 }
@@ -176,7 +206,10 @@ export function guardRemoveWorktree(
 ): void {
   assertInsideDevRoot(worktreePath, root);
   if (!listed.includes(path.resolve(worktreePath))) {
-    throw new HttpError(409, "That path is not a registered worktree of this repo.");
+    throw new HttpError(
+      409,
+      "That path is not a registered worktree of this repo.",
+    );
   }
   if (path.resolve(worktreePath) === path.resolve(mainWorktree)) {
     throw new HttpError(403, "Refusing to remove the repo's main worktree.");
@@ -190,32 +223,51 @@ export async function removeWorktree(
 ): Promise<void> {
   assertInsideDevRoot(repoPath, devRoot());
   assertInsideDevRoot(worktreePath, devRoot());
-  const list = await exec(["git", "-C", repoPath, "worktree", "list", "--porcelain"], {
-    timeoutMs: 5000,
-  });
+  const list = await exec(
+    ["git", "-C", repoPath, "worktree", "list", "--porcelain"],
+    {
+      timeoutMs: 5000,
+    },
+  );
   const entries = parseWorktreeList(list);
   guardRemoveWorktree(
     worktreePath,
     entries.map((e) => path.resolve(e.path)),
     entries[0]?.path || "",
   );
-  const args = ["git", "-C", repoPath, "worktree", "remove", path.resolve(worktreePath)];
+  const args = [
+    "git",
+    "-C",
+    repoPath,
+    "worktree",
+    "remove",
+    path.resolve(worktreePath),
+  ];
   if (force) args.push("--force");
   await exec(args, { timeoutMs: 15000 });
 }
 
 export async function pruneWorktrees(repoPath: string): Promise<string[]> {
   assertInsideDevRoot(repoPath, devRoot());
-  const out = await exec(["git", "-C", repoPath, "worktree", "prune", "-v", "--dry-run"], {
-    timeoutMs: 5000,
-    okReturnCodes: [0],
-  });
+  const out = await exec(
+    ["git", "-C", repoPath, "worktree", "prune", "-v", "--dry-run"],
+    {
+      timeoutMs: 5000,
+      okReturnCodes: [0],
+    },
+  );
   if (!out.trim()) return [];
-  await exec(["git", "-C", repoPath, "worktree", "prune", "-v"], { timeoutMs: 15000 });
+  await exec(["git", "-C", repoPath, "worktree", "prune", "-v"], {
+    timeoutMs: 15000,
+  });
   return out.trim().split("\n");
 }
 
-export function guardDeleteBranch(branch: string, current: string, defaultBranch: string): void {
+export function guardDeleteBranch(
+  branch: string,
+  current: string,
+  defaultBranch: string,
+): void {
   if (!branch || branch.startsWith("-")) {
     throw new HttpError(400, "Invalid branch name.");
   }
@@ -233,9 +285,12 @@ export async function deleteBranch(
   force: boolean,
 ): Promise<{ deleted: string; merged: boolean }> {
   assertInsideDevRoot(repoPath, devRoot());
-  const head = await exec(["git", "-C", repoPath, "symbolic-ref", "--short", "HEAD"], {
-    timeoutMs: 3000,
-  }).catch(() => "");
+  const head = await exec(
+    ["git", "-C", repoPath, "symbolic-ref", "--short", "HEAD"],
+    {
+      timeoutMs: 3000,
+    },
+  ).catch(() => "");
   const current = head.trim();
   const defaultBranch = await defaultBranchOf(repoPath);
   guardDeleteBranch(branch, current, defaultBranch);
@@ -251,4 +306,44 @@ export async function deleteBranch(
     timeoutMs: 5000,
   });
   return { deleted: branch, merged };
+}
+
+// Remote actions canonicalize existing paths and bind mutations to fresh Git metadata.
+export async function canonicalRepo(target: string): Promise<string> {
+  const root = await fs.realpath(devRoot());
+  const resolved = await fs.realpath(target);
+  if (resolved !== root && !resolved.startsWith(root + path.sep))
+    throw new HttpError(
+      403,
+      "Path resolves outside the configured development root.",
+    );
+  const top = (
+    await exec(["git", "-C", resolved, "rev-parse", "--show-toplevel"])
+  ).trim();
+  if ((await fs.realpath(top)) !== resolved)
+    throw new HttpError(403, "Expected a repository or worktree root.");
+  const common = (
+    await exec(["git", "-C", resolved, "rev-parse", "--git-common-dir"])
+  ).trim();
+  const realCommon = await fs.realpath(path.resolve(resolved, common));
+  if (!realCommon.startsWith(root + path.sep))
+    throw new HttpError(
+      403,
+      "Git metadata resolves outside the configured development root.",
+    );
+  return resolved;
+}
+export async function worktreeRevision(repoPath: string): Promise<string> {
+  const [list, refs] = await Promise.all([
+    exec(["git", "-C", repoPath, "worktree", "list", "--porcelain"]),
+    exec([
+      "git",
+      "-C",
+      repoPath,
+      "for-each-ref",
+      "--format=%(refname) %(objectname)",
+      "refs/heads",
+    ]),
+  ]);
+  return crypto.createHash("sha256").update(list).update(refs).digest("hex");
 }

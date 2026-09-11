@@ -1,14 +1,24 @@
-import { guard } from "@/lib/guard";
 import { errorJson } from "@/lib/http";
-import { sampleVitals } from "@/lib/vitals";
-
+import { machineSnapshot } from "@/lib/machines/backend";
+import { guard } from "@/lib/guard";
 export async function GET(req: Request) {
   const denied = guard(req);
   if (denied) return denied;
+  const url = new URL(req.url);
+  const machine =
+    url.searchParams.get("machine") ||
+    req.headers.get("x-dockmaster-machine") ||
+    "local";
   try {
-    const { data, cachedAt } = await sampleVitals();
-    return Response.json({ enabled: true, cachedAt, data });
-  } catch (err) {
-    return errorJson(err);
+    return Response.json(
+      await machineSnapshot(
+        machine,
+        "vitals",
+        url.searchParams.get("force") === "1",
+      ),
+    );
+  } catch (e) {
+    if (machine === "local") return errorJson(e);
+    return Response.json({ error: (e as Error).message }, { status: 400 });
   }
 }

@@ -18,7 +18,7 @@ describe("parseCputime", () => {
 
 describe("parseSample", () => {
   it("parses ps column output", () => {
-    const sample = parseSample("  42  501  3:20.00  51200 /usr/bin/node\n");
+    const sample = parseSample("  42  501  3:20.00  51200 Wed Sep 9 10:00:00 2026 /usr/bin/node\n");
     expect(sample.get(42)).toMatchObject({
       uid: 501,
       cputimeSec: 200,
@@ -32,8 +32,8 @@ describe("toRows", () => {
   const users = new Map([[501, "naman"]]);
 
   it("computes instantaneous cpu and merges cpu/mem tops", () => {
-    const first = parseSample("1 501 0:00.00 1000 /a\n2 501 0:00.00 90000 /b\n");
-    const second = parseSample("1 501 0:00.50 1000 /a\n2 501 0:00.00 91000 /b\n");
+    const first = parseSample("1 501 0:00.00 1000 Wed Sep 9 10:00:00 2026 /a\n2 501 0:00.00 90000 Wed Sep 9 10:00:00 2026 /b\n");
+    const second = parseSample("1 501 0:00.50 1000 Wed Sep 9 10:00:00 2026 /a\n2 501 0:00.00 91000 Wed Sep 9 10:00:00 2026 /b\n");
     const rows = toRows(first, second, 1000, users);
     const a = rows.find((r) => r.pid === 1)!;
     const b = rows.find((r) => r.pid === 2)!;
@@ -44,8 +44,19 @@ describe("toRows", () => {
   });
 
   it("clamps negative deltas to zero", () => {
-    const first = parseSample("1 501 0:10.00 1000 /a\n");
-    const second = parseSample("1 501 0:09.00 1000 /a\n");
+    const first = parseSample("1 501 0:10.00 1000 Wed Sep 9 10:00:00 2026 /a\n");
+    const second = parseSample("1 501 0:09.00 1000 Wed Sep 9 10:00:00 2026 /a\n");
     expect(toRows(first, second, 1000, users)[0].cpuPct).toBe(0);
   });
+});
+
+it("drops a PID reused between samples, even when its command is unchanged", () => {
+  const first = parseSample("42 501 0:01.00 100 Wed Sep 9 10:00:00 2026 /node");
+  const second = parseSample("42 501 0:02.00 100 Wed Sep 9 11:00:00 2026 /node");
+  expect(toRows(first, second, 1000, new Map())).toEqual([]);
+});
+it("takes command and identity from the same sample", () => {
+  const first = parseSample("42 501 0:01.00 100 Wed Sep 9 10:00:00 2026 /old");
+  const second = parseSample("42 501 0:02.00 100 Wed Sep 9 10:00:00 2026 /new");
+  expect(toRows(first, second, 1000, new Map())[0]).toMatchObject({ command: "/new", startedAt: second.get(42)!.startedAt });
 });

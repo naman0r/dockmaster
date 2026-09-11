@@ -1,9 +1,10 @@
 "use client";
 
+import { OpenRemotePort, TunnelList } from "@/components/port-tunnels";
 import { targetId } from "@/lib/command-palette";
 
 import { useCallback, useMemo, useState } from "react";
-import { apiGet, apiPost } from "@/lib/client/api";
+import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll, usePaletteTarget } from "@/components/hooks";
 import {
   Badge,
@@ -34,6 +35,9 @@ type Service = {
 };
 
 type PortsSnapshot = {
+  machineId?: string;
+  state?: string;
+  error?: string;
   enabled: boolean;
   cachedAt: string | null;
   data: { services: Service[] } | null;
@@ -47,7 +51,9 @@ function identity(s: Service): string {
 function compactPath(p: string, user: string): string {
   if (!p) return "working directory unavailable";
   const prefix = `/Users/${user}`;
-  return p === prefix || p.startsWith(`${prefix}/`) ? `~${p.slice(prefix.length)}` : p;
+  return p === prefix || p.startsWith(`${prefix}/`)
+    ? `~${p.slice(prefix.length)}`
+    : p;
 }
 
 function formatUptime(startedAt: string): string {
@@ -63,12 +69,21 @@ function formatUptime(startedAt: string): string {
 }
 
 function searchable(s: Service): string {
-  return [s.port, s.project, s.kind, s.cwd, s.argv, s.user, s.addresses.join(" ")]
+  return [
+    s.port,
+    s.project,
+    s.kind,
+    s.cwd,
+    s.argv,
+    s.user,
+    s.addresses.join(" "),
+  ]
     .join(" ")
     .toLowerCase();
 }
 
 export default function PortsPage() {
+  const { apiGet, apiPost, remote, machine, status, lease } = useMachineApi();
   const [snap, setSnap] = useState<PortsSnapshot | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -77,17 +92,24 @@ export default function PortsPage() {
   const [stopping, setStopping] = useState<Set<string>>(new Set());
   const [enabled, setEnabled] = useState(true);
   const toast = useToast();
-  usePaletteTarget(snap, () => { setQuery(""); setShowSystem(true); });
+  usePaletteTarget(snap, () => {
+    setQuery("");
+    setShowSystem(true);
+  });
 
   const refresh = useCallback(async () => {
     try {
-      const data = await apiGet<PortsSnapshot>("/api/ports");
+      const data = await apiGet<PortsSnapshot>(
+        `/api/ports?machine=${encodeURIComponent(machine.id)}`,
+      );
+      if (data.machineId && data.machineId !== machine.id)
+        throw new Error("Machine response mismatch.");
       setSnap(data);
-      setError("");
+      setError(data.error || "");
     } catch (err) {
       setError(`Scanner unavailable: ${(err as Error).message}`);
     }
-  }, []);
+  }, [machine.id]);
 
   usePoll(refresh, 2500);
 
@@ -100,7 +122,10 @@ export default function PortsPage() {
     });
   }, [snap, query, showSystem]);
 
-  const uniquePorts = useMemo(() => new Set(visible.map((s) => s.port)).size, [visible]);
+  const uniquePorts = useMemo(
+    () => new Set(visible.map((s) => s.port)).size,
+    [visible],
+  );
 
   const requestStop = useCallback(
     async (service: Service, mode: "term" | "kill") => {
@@ -123,7 +148,10 @@ export default function PortsPage() {
         });
         if (result.stillListening && mode === "term") {
           setPendingForce((prev) => new Set(prev).add(key));
-          toast(`${service.project} is still listening. Force stop is now available.`, true);
+          toast(
+            `${service.project} is still listening. Force stop is now available.`,
+            true,
+          );
         } else if (result.stillListening) {
           toast(`Port ${service.port} is still occupied by a listener.`, true);
         } else {
@@ -145,7 +173,7 @@ export default function PortsPage() {
         await refresh();
       }
     },
-    [refresh, toast],
+    [refresh, toast, remote],
   );
 
   const toggleModule = useCallback(
@@ -167,9 +195,19 @@ export default function PortsPage() {
       <PageHeader
         eyebrow="Port authority"
         title="Listening berths"
-        description="Every server holding a TCP port on this Mac. Stop sends SIGTERM to the whole process tree; force stop is a separate confirmed step, never automatic."
+        description={
+          remote
+            ? `Listening ports on ${machine.name}. Open through SSH or stop a process after target-side identity checks.`
+            : "Every server holding a TCP port on this Mac. Stop sends SIGTERM to the whole process tree; force stop is a separate confirmed step, never automatic."
+        }
         right={
-          <Toggle checked={enabled} onChange={toggleModule} label="Module on" />
+          !remote && (
+            <Toggle
+              checked={enabled}
+              onChange={toggleModule}
+              label="Module on"
+            />
+          )
         }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -180,7 +218,11 @@ export default function PortsPage() {
             placeholder="port, project, kind, command…"
           />
         </div>
-        <Toggle checked={showSystem} onChange={setShowSystem} label="Background services" />
+        <Toggle
+          checked={showSystem}
+          onChange={setShowSystem}
+          label="Background services"
+        />
         <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt
             ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}${
@@ -190,6 +232,15 @@ export default function PortsPage() {
         </span>
       </div>
       <ErrorNote message={error} />
+      <div data-machine={machine.id}>
+        <MachineNotice status={status} />
+      </div>
+      {remote && <TunnelList />}
+      <p role="status" className="text-xs text-muted">
+        {error && snap?.data
+          ? "Stale · last successful snapshot"
+          : snap?.state || (error ? "Unreachable" : "Loading")}
+      </p>
       <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
         <span>Active berths</span>
         <span className="text-quiet tracking-[0.08em]">
@@ -197,15 +248,31 @@ export default function PortsPage() {
         </span>
       </div>
       {snap?.enabled === false ? (
-        <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
+        <EmptyState
+          glyph="[x]"
+          title="Module off"
+          hint="Switch it back on above."
+        />
       ) : visible.length === 0 ? (
         <EmptyState
           glyph={query ? "[ ? ]" : "[ : ]"}
-          title={query ? "No matching berths" : "Nothing listening"}
+          title={
+            !snap?.data
+              ? error
+                ? "Machine unavailable"
+                : "Loading ports…"
+              : query
+                ? "No matching berths"
+                : "Nothing listening"
+          }
           hint={
-            query
-              ? "Try a port, project name, process kind, or command."
-              : "Start a dev server and it will appear here."
+            !snap?.data
+              ? error
+                ? "Check the connection in Settings. Local views remain available."
+                : "Waiting for the selected machine."
+              : query
+                ? "Try a port, project name, process kind, or command."
+                : "Start a dev server and it will appear here."
           }
         />
       ) : (
@@ -216,8 +283,13 @@ export default function PortsPage() {
             const busy = stopping.has(key);
             return (
               <article
-                key={key}
-                id={targetId("port", `${s.pid}:${s.port}`)}
+                key={`${machine.id}:${key}`}
+                id={targetId(
+                  "port",
+                  remote
+                    ? `${machine.id}:${s.pid}:${s.port}`
+                    : `${s.pid}:${s.port}`,
+                )}
                 tabIndex={-1}
                 className={`card-surface relative grid min-h-[132px] grid-cols-[164px_minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-line transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright max-[810px]:grid-cols-[126px_minmax(0,1fr)]${
                   s.isExposed
@@ -236,12 +308,19 @@ export default function PortsPage() {
                 </div>
                 <div className="min-w-0 px-6 py-5">
                   <div className="mb-2.5 flex min-w-0 items-center gap-2">
-                    <h3 className="m-0 min-w-0 truncate text-base font-[650]" title={s.project}>
+                    <h3
+                      className="m-0 min-w-0 truncate text-base font-[650]"
+                      title={s.project}
+                    >
                       {s.project}
                     </h3>
                     <Badge>{s.kind}</Badge>
                     <Badge variant={s.isExposed ? "exposed" : "scope"}>
-                      {s.isExposed ? "LAN exposed" : "Local only"}
+                      {s.isExposed
+                        ? "LAN exposed"
+                        : remote
+                          ? "Remote loopback"
+                          : "Local only"}
                     </Badge>
                   </div>
                   <div
@@ -255,13 +334,17 @@ export default function PortsPage() {
                     <span>PPID {s.ppid}</span>
                     <span>{formatUptime(s.startedAt)}</span>
                     <span>{s.user}</span>
-                    <span className="font-mono text-quiet">{s.addresses.join(" ")}</span>
+                    <span className="font-mono text-quiet">
+                      {s.addresses.join(" ")}
+                    </span>
                   </div>
                   <div
                     className="font-mono text-quiet truncate mt-2 text-[11px]"
                     title={s.argv}
                   >
-                    $ {s.argv}
+                    {remote
+                      ? "Command arguments omitted on remote machines"
+                      : `$ ${s.argv}`}
                   </div>
                   {s.note ? (
                     <div className="text-alarm mt-[7px] font-mono text-[9px] font-medium leading-[1.35] tracking-[0.03em]">
@@ -270,24 +353,43 @@ export default function PortsPage() {
                   ) : null}
                 </div>
                 <div className="flex min-w-[112px] flex-col justify-center gap-2 py-5 pl-2 pr-5 max-[810px]:col-span-full max-[810px]:flex-row max-[810px]:p-[0_18px_18px] max-[810px]:[&>*]:flex-1">
-                  <a
-                    className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border border-line-bright px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline outline-none transition-colors text-muted hover:border-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                    href={`http://localhost:${s.port}/`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open
-                  </a>
-                  {s.isStoppable ? (
+                  {remote ? (
+                    <OpenRemotePort service={s} lease={lease} />
+                  ) : (
+                    <a
+                      className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border border-line-bright px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline outline-none transition-colors text-muted hover:border-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      href={remote ? undefined : `http://localhost:${s.port}/`}
+                      aria-disabled={remote}
+                      title={
+                        remote
+                          ? "Remote opening requires an SSH tunnel; not yet supported."
+                          : undefined
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {remote ? "Open unavailable" : "Open"}
+                    </a>
+                  )}
+                  {s.isStoppable && (!remote || status.state === "ready") ? (
                     <Button
                       variant={force ? "force" : "stop"}
                       busy={busy}
                       onClick={() => requestStop(s, force ? "kill" : "term")}
                     >
-                      {busy ? (force ? "Forcing…" : "Stopping…") : force ? "Force stop" : "Stop"}
+                      {busy
+                        ? force
+                          ? "Forcing…"
+                          : "Stopping…"
+                        : force
+                          ? "Force stop"
+                          : "Stop"}
                     </Button>
                   ) : (
-                    <Button disabled title="System, background, runtime bridge, or Dockmaster process">
+                    <Button
+                      disabled
+                      title="System, background, runtime bridge, or Dockmaster process"
+                    >
                       Protected
                     </Button>
                   )}
