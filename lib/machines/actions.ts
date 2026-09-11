@@ -14,6 +14,7 @@ import {
 } from "@/lib/worktrees/scan";
 import { addCheck, removeCheck, resultsCache } from "@/lib/health";
 import { saveProfile, deleteProfile } from "@/lib/hosts";
+import { cleanTarget } from "@/lib/disk";
 import { devRoot } from "@/lib/settings";
 import { applyRemoteHosts } from "./remote-hosts";
 import { actionSchema, type Action, type Payloads } from "./protocol";
@@ -71,6 +72,7 @@ export async function executeAction(raw: Action): Promise<Payloads["action"]> {
     else await deleteBranch(repo, w.branch, w.force);
     return { ok: true };
   }
+  if (a.action === "disk.clean") return { ok: true, ...(await cleanTarget(a.path)) };
   if (a.action === "health.add") {
     await addCheck(a.label, a.url);
     resultsCache.invalidate();

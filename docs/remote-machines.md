@@ -14,6 +14,7 @@ Dockmaster runs its UI and coordinating backend on the main Mac, bound to loopba
 | Health | Checks stored and executed on the selected target; localhost means that target |
 | Hosts | Read and save/delete profiles; applying profiles requires the optional fixed privileged helper |
 | Secrets | Tracked-file scanning and complete preview redaction before results leave the target |
+| Disk | Artifact and cache measurement under the target's root and home; guarded clean of the same allowlisted paths |
 | Notepad | One shared notebook in the coordinating Mac’s data directory, independent of selection |
 | Logbook | Local-only, unchanged; remote selection shows that limitation |
 
@@ -62,7 +63,7 @@ Use these verified values:
 
 Save, Test connection, then select Homelab in the sidebar. Saving does not install or execute anything. Test connection explicitly executes the configured companion and reports hostname, OS, user, version, root, and capabilities. An updated companion requires Test connection or a coordinating backend restart to replace an existing session.
 
-Protocol and companion versions are now **2 / 2.0.2**. The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
+Protocol and companion versions are now **2 / 2.1.0**. The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
 
 Machine UUIDs persist independently of names/hostnames in `machines.json` under `DOCKMASTER_DATA_DIR` (default `~/.dockmaster`), written atomically with mode 0600. Existing module settings remain in `settings.json`. Module toggles currently apply dashboard-wide and are changed on This Mac. Selection persists per browser tab; Notepad stays shared.
 
@@ -150,3 +151,5 @@ Verified 2026-09-09 from `namanmacpro` through the guarded local API: homelab co
 Companion 2.0.2 collects process names and start times together and rejects PID reuse between CPU samples. Tunnel creation stays bound to the validated SSH configuration and rechecks authorization after binding the local port. Upgrade the companion for the process identity fix.
 
 Verified 2026-09-09: installed companion 2.0.2 on the homelab and refreshed only its Dockmaster connection. The guarded dashboard API returned 36 homelab and 39 local process rows with names and start identities. No processes were signaled. The previous homelab bundle is `companion.cjs.before-identity-fix` (rollback requires its matching backend). Configuration-change tunnel races are covered by isolated loopback tests.
+
+Verified 2026-09-11: installed companion 2.1.0 (Disk) on the homelab at `/Users/namanrusia/Services/dockmaster/companion.cjs` over SSH and ran its hello handshake with the configured Node binary; it reported capabilities including `disk`. The previous bundle is saved as `companion.cjs.before-disk` (it was the parallel agents-branch 2.1.0 build; restoring it requires that branch's backend). Nothing was cleaned or scanned on the homelab during installation.

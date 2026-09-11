@@ -7,8 +7,9 @@ import type { ProcessSample } from "@/lib/processes";
 import type { CheckResult } from "@/lib/health";
 import type { HostEntry } from "@/lib/hosts";
 import type { scanSecrets } from "@/lib/secrets";
+import type { DiskData } from "@/lib/disk";
 export const VERSION = 2;
-export const COMPANION_VERSION = "2.0.2";
+export const COMPANION_VERSION = "2.1.0";
 export const MAX_MESSAGE = 2 * 1024 * 1024;
 export const READ_OPERATIONS = [
   "ports",
@@ -19,6 +20,7 @@ export const READ_OPERATIONS = [
   "health",
   "hosts",
   "secrets",
+  "disk",
 ] as const;
 export type ReadOperation = (typeof READ_OPERATIONS)[number];
 export type Operation = "hello" | ReadOperation | "action";
@@ -58,7 +60,8 @@ export type Payloads = {
   health: { checks: CheckResult[] };
   hosts: HostsData;
   secrets: Awaited<ReturnType<typeof scanSecrets>>;
-  action: { ok: boolean; stillAlive?: boolean; stillListening?: boolean };
+  disk: DiskData;
+  action: { ok: boolean; stillAlive?: boolean; stillListening?: boolean; freedKb?: number };
 };
 export type Result<K extends Operation = Operation> = {
   cachedAt: string;
@@ -266,10 +269,26 @@ const schemas = {
       .max(20000),
     untrackedEnvFiles: z.array(z.object({ repo: str, path: str })).max(10000),
   }),
+  disk: z.object({
+    root: str,
+    repos: z
+      .array(
+        z.object({
+          name: str,
+          path: str,
+          sizeKb: num,
+          artifacts: z.array(z.object({ path: str, name: str, sizeKb: num })).max(1000),
+        }),
+      )
+      .max(10000),
+    caches: z.array(z.object({ label: str, path: str, sizeKb: num })).max(100),
+    reclaimableKb: num,
+  }),
   action: z.object({
     ok: z.boolean(),
     stillAlive: z.boolean().optional(),
     stillListening: z.boolean().optional(),
+    freedKb: num.optional(),
   }),
 };
 const pid = z.number().int().min(2);
@@ -343,6 +362,7 @@ export const actionSchema = z.discriminatedUnion("action", [
   z
     .object({ action: z.literal("hosts.apply"), id: str.min(1), revision })
     .strict(),
+  z.object({ action: z.literal("disk.clean"), path: absolute }).strict(),
 ]);
 export type Action = z.infer<typeof actionSchema>;
 const requestSchema = z

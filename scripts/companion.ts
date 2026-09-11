@@ -43,7 +43,7 @@ function sanitize(result: Result): Result {
         })),
       },
     };
-  if ("repos" in result.data)
+  if ("depth" in result.data)
     return {
       ...result,
       data: {
