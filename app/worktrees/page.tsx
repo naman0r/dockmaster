@@ -1,7 +1,13 @@
 "use client";
 
 import { branchPullRequestsUrl } from "@/lib/git-links";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  WORKTREE_SORTS,
+  isWorktreeSort,
+  sortWorktrees,
+  type WorktreeSort,
+} from "@/lib/worktrees/sort";
 import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
@@ -57,6 +63,15 @@ export default function WorktreesPage() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<WorktreeSort>("name");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("dockmaster:worktree-sort");
+      if (isWorktreeSort(saved)) setSort(saved);
+    } catch {
+      /* Sorting still works when browser storage is unavailable. */
+    }
+  }, []);
   const [busy, setBusy] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(true);
   const toast = useToast();
@@ -110,14 +125,15 @@ export default function WorktreesPage() {
   const repos = useMemo(() => {
     const list = snap?.data || [];
     const needle = query.trim().toLowerCase();
-    return needle
+    const filtered = needle
       ? list.filter((r) =>
           `${r.name} ${r.path} ${r.worktrees.map((wt) => wt.branch).join(" ")} ${r.staleBranches.map((b) => b.name).join(" ")}`
             .toLowerCase()
             .includes(needle),
         )
       : list;
-  }, [snap, query]);
+    return sortWorktrees(filtered, sort);
+  }, [snap, query, sort]);
 
   return (
     <>
@@ -143,6 +159,29 @@ export default function WorktreesPage() {
             placeholder="repo, branch or path…"
           />
         </div>
+        <label className="flex min-w-0 items-center gap-2 text-xs text-muted">
+          Sort by
+          <select
+            value={sort}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (!isWorktreeSort(next)) return;
+              setSort(next);
+              try {
+                localStorage.setItem("dockmaster:worktree-sort", next);
+              } catch {
+                /* Optional preference. */
+              }
+            }}
+            className="min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] text-xs text-ink outline-none focus:border-accent"
+          >
+            {Object.entries(WORKTREE_SORTS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt
             ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}`
