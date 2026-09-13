@@ -124,14 +124,19 @@ Remove a machine in Settings to close its companion and tunnels and discard loca
 
 ## Isolated local review and verification
 
-An existing dashboard uses this checkout. Keep review builds/data separate:
+An existing dashboard uses this checkout, and every Next build rewrites `tsconfig.json`
+and `next-env.d.ts` to point at the build directory it used, so a second build directory
+in the same checkout leaves stale route types behind and breaks `npm run typecheck`.
+Review a branch from its own worktree instead:
 
 ```sh
-DOCKMASTER_BUILD_DIR=.next-remote npm run build
-DOCKMASTER_BUILD_DIR=.next-remote DOCKMASTER_PORT=36253 DOCKMASTER_DATA_DIR=/private/tmp/dockmaster-remote-validation npm start
+git worktree add ../dockmaster-review <branch>
+cd ../dockmaster-review && npm install && npm run build
+DOCKMASTER_PORT=36253 DOCKMASTER_DATA_DIR=/private/tmp/dockmaster-remote-validation npm start
 ```
 
-Open `http://127.0.0.1:36253/settings`. Temporary validation settings already contain Homelab on the main Mac. Use the same build-directory variable for build/start. Normal startup and `agent:install` continue to use `.next`.
+Open `http://127.0.0.1:36253/settings`. The installed agent keeps serving `.next` from
+the main checkout. Remove the worktree when done.
 
 Verified 2026-09-09 from `namanmacpro`, user `namanrusia`, checkout `/Users/namanrusia/developer/dockmaster`, branch `feat/remote-machines`; PR #5. The original milestone was committed/pushed before expanding the feature set.
 
