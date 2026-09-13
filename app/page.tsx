@@ -173,9 +173,10 @@ const MODULES: ModuleCard[] = [
     glyph: "DK",
     title: "Disk",
     description: "Build artifacts and tool caches you can delete and regenerate.",
-    endpoint: "/api/disk",
+    endpoint: "/api/disk?peek=1",
     metric: (s) => {
-      const kb = (s.data as { reclaimableKb?: number } | null)?.reclaimableKb ?? 0;
+      const kb = (s.data as { reclaimableKb?: number } | null)?.reclaimableKb;
+      if (kb === undefined) return { value: "—", label: "open Disk to scan" };
       const gb = kb / 1024 / 1024;
       return { value: gb >= 1 ? `${gb.toFixed(1)}G` : `${Math.round(kb / 1024)}M`, label: "reclaimable", tone: gb >= 20 ? "alarm" : undefined };
     },
@@ -221,23 +222,21 @@ export default function OverviewPage() {
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    const results = await Promise.allSettled([
-      ...MODULES.map(async (m) => [m.href, await apiGet<SnapshotLite>(m.endpoint)] as const),
-      apiGet<SnapshotLite>("/api/vitals").then((v) => ["/api/vitals", v] as const),
-    ]);
-    const next: Record<string, SnapshotLite | null> = {};
-    let failed = false;
-    for (const result of results) {
-      if (result.status !== "fulfilled") {
-        failed = true;
-        continue;
-      }
-      const [key, value] = result.value;
-      if (key === "/api/vitals") setVitals((value.data as Vitals) ?? null);
-      else next[key] = value;
-    }
-    setSnaps(next);
-    setError(failed ? "One or more modules are unreachable." : "");
+    const requests = [
+      ...MODULES.map((m) => [m.href, m.endpoint] as const),
+      ["/api/vitals", "/api/vitals"] as const,
+    ];
+    // Each card paints as its own request lands; one slow scanner must not
+    // blank the whole page.
+    const values = await Promise.all(
+      requests.map(async ([key, endpoint]) => {
+        const value = await apiGet<SnapshotLite>(endpoint).catch(() => null);
+        if (key === "/api/vitals") setVitals((value?.data as Vitals) ?? null);
+        else setSnaps((prev) => ({ ...prev, [key]: value }));
+        return value;
+      }),
+    );
+    setError(values.includes(null) ? "One or more modules are unreachable." : "");
   }, []);
 
   usePoll(refresh, 5000);

@@ -9,3 +9,5 @@ out/
 __pycache__/
 
 dist/
+
+.worktrees/

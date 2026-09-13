@@ -14,7 +14,10 @@ export async function GET(req: Request) {
     if (!(await moduleEnabled("disk"))) {
       return Response.json(disabledSnapshot());
     }
-    const force = new URL(req.url).searchParams.get("force") === "1";
+    const params = new URL(req.url).searchParams;
+    // Harbor peeks: a du over the dev root is too heavy to run for a summary card.
+    if (params.get("peek") === "1") return Response.json(snapshot(true, diskCache.peek()));
+    const force = params.get("force") === "1";
     const { data, cachedAt, scanMs } = await diskCache.get(force, scanDisk);
     return Response.json(snapshot(true, { data, cachedAt, scanMs }));
   } catch (err) {
