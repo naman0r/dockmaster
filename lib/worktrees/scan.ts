@@ -68,13 +68,13 @@ export function parseWorktreeList(output: string): WorktreeEntry[] {
 
 export function parseBranchRefs(
   output: string,
-): Array<{ name: string; dateUnix: number }> {
+): Array<{ name: string; dateUnix: number; iso: string }> {
   return output
     .split("\n")
     .filter(Boolean)
     .map((line) => {
-      const [name, dateUnix] = line.split("\t");
-      return { name, dateUnix: Number(dateUnix) };
+      const [name, dateUnix, iso = ""] = line.split("\t");
+      return { name, dateUnix: Number(dateUnix), iso };
     })
     .filter((b) => b.name && Number.isFinite(b.dateUnix));
 }
@@ -91,7 +91,7 @@ async function staleBranches(
       "-C",
       repoPath,
       "for-each-ref",
-      "--format=%(refname:short)%09%(committerdate:unix)%09%(creatordate:iso-strict)",
+      "--format=%(refname:short)%09%(committerdate:unix)%09%(committerdate:iso-strict)",
       "refs/heads",
     ],
     { timeoutMs: 5000 },
@@ -110,14 +110,18 @@ async function staleBranches(
   );
   if (candidates.length === 0) return [];
 
-  return mapLimit(candidates, 4, async (b) => {
-    const merged = await isAncestor(repoPath, b.name, defaultBranch);
-    const iso = await exec(
-      ["git", "-C", repoPath, "log", "-1", "--format=%cI", b.name],
-      { timeoutMs: 5000 },
-    ).catch(() => "");
-    return { name: b.name, lastCommitIso: iso.trim(), merged };
-  });
+  // One --merged listing per repo instead of a rev-list per branch.
+  const merged = new Set(
+    (
+      await exec(
+        ["git", "-C", repoPath, "for-each-ref", "--format=%(refname:short)", `--merged=${defaultBranch}`, "refs/heads"],
+        { timeoutMs: 8000 },
+      ).catch(() => "")
+    )
+      .split("\n")
+      .filter(Boolean),
+  );
+  return candidates.map((b) => ({ name: b.name, lastCommitIso: b.iso, merged: merged.has(b.name) }));
 }
 
 async function defaultBranchOf(repoPath: string): Promise<string> {
@@ -144,9 +148,7 @@ async function isAncestor(
 ): Promise<boolean> {
   const count = await exec(
     ["git", "-C", repoPath, "rev-list", "--count", `${into}..${branch}`],
-    {
-      timeoutMs: 8000,
-    },
+    { timeoutMs: 8000 },
   );
   return Number(count.trim()) === 0;
 }

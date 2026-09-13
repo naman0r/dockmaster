@@ -78,9 +78,9 @@ export function parseDu(output: string): Map<string, number> {
   return sizes;
 }
 
-async function du(paths: string[]): Promise<Map<string, number>> {
+async function du(paths: string[], flags: string[] = []): Promise<Map<string, number>> {
   if (!paths.length) return new Map();
-  const out = await exec(["/usr/bin/du", "-sk", ...paths], {
+  const out = await exec(["/usr/bin/du", "-sk", ...flags, ...paths], {
     timeoutMs: 90000,
     okReturnCodes: [0, 1],
   });
@@ -114,12 +114,16 @@ export async function scanDisk(): Promise<DiskData> {
   const repoPaths = await findRepos(root, walkDepth());
   const repos = await mapLimit(repoPaths, DU_CONCURRENCY, async (repo) => {
     const artifactPaths = await findArtifacts(repo);
-    const sizes = await du([repo, ...artifactPaths]);
-    const artifacts = artifactPaths
-      .map((p) => ({ path: p, name: path.relative(repo, p), sizeKb: sizes.get(p) ?? 0 }))
-      .filter((a) => a.sizeKb >= MIN_LIST_KB)
-      .sort((a, b) => b.sizeKb - a.sizeKb);
-    return { name: path.basename(repo), path: repo, sizeKb: sizes.get(repo) ?? 0, artifacts };
+    // -I makes the repo walk skip artifact dirs, so node_modules is read once
+    // (for its own size) instead of again for the repo total.
+    const [sizes, rest] = await Promise.all([
+      du(artifactPaths),
+      du([repo], [...ARTIFACT_DIRS].flatMap((name) => ["-I", name])),
+    ]);
+    const measured = artifactPaths.map((p) => ({ path: p, name: path.relative(repo, p), sizeKb: sizes.get(p) ?? 0 }));
+    const artifacts = measured.filter((a) => a.sizeKb >= MIN_LIST_KB).sort((a, b) => b.sizeKb - a.sizeKb);
+    const sizeKb = (rest.get(repo) ?? 0) + measured.reduce((acc, a) => acc + a.sizeKb, 0);
+    return { name: path.basename(repo), path: repo, sizeKb, artifacts };
   });
   repos.sort((a, b) => b.sizeKb - a.sizeKb);
 
