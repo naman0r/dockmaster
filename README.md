@@ -89,15 +89,39 @@ Requirements: macOS, Node 20.12+.
 
 ```bash
 npm install
-cp .env.example .env   # optional: all values have defaults
-npm run dev            # http://localhost:36252
+cp .env.example .env   # optional: every value has a default
 ```
 
-Production (lower memory, no file watching):
+Dockmaster has two modes. Use production unless you are changing its code.
+
+### Production
 
 ```bash
 npm run build
-npm start
+npm start              # http://localhost:36252
+```
+
+`build` compiles once into `.next`; `start` serves that bundle. This is the always-on
+mode: roughly 150-200 MB resident, no CPU while no tab is open, and every page renders
+in a few milliseconds. The server keeps serving the old bundle after you pull changes,
+so rebuild and restart to pick them up.
+
+### Development
+
+```bash
+npm run dev            # same port
+```
+
+`dev` compiles each page the first time it is opened, watches every file, and keeps the
+bundler resident: expect 500 MB or more and a one to three second pause on the first
+visit to each page. Use it only while editing Dockmaster. Leaving it running for days is
+the most common reason the dashboard feels slow.
+
+Both modes share `.env`, the data dir, and the port, so stop one before starting the
+other. To see which one is running:
+
+```bash
+ps -axo pid,etime,command | grep -E "serve.mjs (dev|start)" | grep -v grep
 ```
 
 ### Configuration (.env)
@@ -115,7 +139,7 @@ local data dir.
 
 ## Keep it running
 
-Install a per-user LaunchAgent (run a production build first):
+Install a per-user LaunchAgent. It runs the production server, so build first:
 
 ```bash
 npm run build
@@ -123,7 +147,10 @@ npm run agent:install     # com.dockmaster.app, starts at login
 npm run agent:uninstall
 ```
 
-Logs land in `~/.dockmaster/logs/`.
+Logs land in `~/.dockmaster/logs/`. Run both commands again after pulling changes;
+`agent:install` replaces and restarts the agent. The plist records the absolute path of
+the `node` that ran the install, so also re-run it after upgrading Node with nvm or mise.
+Otherwise launchd retries a missing binary every ten seconds.
 
 ## Security model
 
