@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dockmaster: know what's running on your Mac</title>
+<meta name="description" content="A local dashboard for stray dev servers, repos, worktrees, secrets, disk, and system health, on your Mac and your remote machines over SSH. Loopback only. Open source.">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Azeret+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070b14;
+    --surface: #0b111c;
+    --line: #1c2a3e;
+    --line-bright: #304965;
+    --ink: #f2f6fc;
+    --muted: #8593a8;
+    --quiet: #526178;
+    --accent: #68a9ff;
+    --ok: #6fe3a5;
+    --alarm: #ff6b6b;
+    --sans: "Instrument Sans", sans-serif;
+    --mono: "Azeret Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.55;
+    background:
+      radial-gradient(60rem 30rem at 85% -10%, rgba(104,169,255,.14), transparent 60%),
+      radial-gradient(40rem 26rem at -10% 40%, rgba(104,169,255,.06), transparent 60%),
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: radial-gradient(rgba(133,147,168,.18) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 70vh);
+  }
+  a { color: inherit; }
+  .wrap { position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 26px 0; }
+  .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .brand img { width: 34px; height: 34px; }
+  .brand b { font-weight: 650; letter-spacing: -.01em; }
+  .brand span { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: .18em; color: var(--accent); text-transform: uppercase; }
+  nav a { font-family: var(--mono); font-size: 12px; letter-spacing: .06em; color: var(--muted); text-decoration: none; margin-left: 26px; }
+  nav a:hover { color: var(--ink); }
+
+  .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; align-items: center; padding: 56px 0 40px; min-height: 78vh; }
+  h1 { font-size: clamp(42px, 5.4vw, 68px); line-height: 1.02; letter-spacing: -.035em; font-weight: 600; margin: 18px 0 22px; }
+  h1 em { font-style: italic; color: var(--accent); font-weight: 500; }
+  .lede { color: var(--muted); font-size: 19px; max-width: 34ch; margin: 0 0 32px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+    padding: 14px 20px; border-radius: 10px; text-decoration: none; cursor: pointer; border: 1px solid var(--line-bright);
+    background: var(--surface); color: var(--ink); transition: transform .15s, border-color .15s, background .15s;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #05101f; border-color: var(--accent); }
+  .btn.primary:hover { background: #8dbcff; }
+  .hint { font-family: var(--mono); font-size: 11px; color: var(--quiet); margin-top: 14px; letter-spacing: .04em; }
+  .hint code { color: var(--muted); }
+
+  .shot { position: relative; perspective: 1600px; }
+  .shot img {
+    width: 100%; display: block; border-radius: 14px; border: 1px solid var(--line-bright);
+    box-shadow: 0 40px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(104,169,255,.08), 0 0 120px -30px rgba(104,169,255,.35);
+    transform: rotateY(-9deg) rotateX(3deg); transform-origin: left center;
+    animation: settle 1.2s cubic-bezier(.2,.7,.2,1) both;
+  }
+  @keyframes settle { from { opacity: 0; transform: rotateY(-16deg) rotateX(6deg) translateX(40px); } }
+  .shot::after {
+    content: ""; position: absolute; inset: auto 10% -30px 10%; height: 60px; filter: blur(30px);
+    background: rgba(104,169,255,.25); z-index: -1;
+  }
+  .rise { animation: rise .8s cubic-bezier(.2,.7,.2,1) both; }
+  .rise:nth-child(2) { animation-delay: .08s } .rise:nth-child(3) { animation-delay: .16s } .rise:nth-child(4) { animation-delay: .24s } .rise:nth-child(5) { animation-delay: .32s }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+
+  .vitals { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 24px 0 80px; background: var(--surface); }
+  .vitals div { padding: 18px 22px; border-right: 1px solid var(--line); }
+  .vitals div:last-child { border-right: 0; }
+  .vitals small { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--quiet); margin-bottom: 8px; }
+  .vitals b { font-family: var(--mono); font-weight: 500; font-size: 14px; }
+  .vitals b.ok { color: var(--ok); }
+
+  section { padding: 40px 0; }
+  h2 { font-size: clamp(30px, 3.4vw, 42px); letter-spacing: -.03em; font-weight: 600; margin: 12px 0 10px; line-height: 1.1; }
+  .sub { color: var(--muted); max-width: 56ch; margin: 0 0 40px; }
+
+  .feature { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 40px; align-items: center; padding: 40px 0; border-top: 1px solid var(--line); }
+  .feature:nth-child(odd) { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); }
+  .feature:nth-child(odd) .text { order: 2; }
+  .feature h3 { font-size: 26px; letter-spacing: -.02em; margin: 10px 0 10px; font-weight: 600; }
+  .feature p { color: var(--muted); margin: 0; }
+  .feature img { width: 100%; display: block; border-radius: 12px; border: 1px solid var(--line-bright); box-shadow: 0 30px 60px -30px rgba(0,0,0,.8); }
+  .feature .n { font-family: var(--mono); font-size: 11px; color: var(--quiet); letter-spacing: .14em; }
+
+  .sec { border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(180deg, rgba(104,169,255,.05), transparent 40%), var(--surface); padding: 40px; }
+  .sec ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+  .sec li { display: grid; grid-template-columns: 56px 1fr; gap: 12px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+  .sec li:nth-last-child(-n+2) { border-bottom: 0; }
+  .sec li i { font-family: var(--mono); font-style: normal; font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: .1em; padding-top: 4px; }
+  .sec li b { display: block; font-weight: 600; margin-bottom: 4px; }
+  .sec li span { color: var(--muted); font-size: 15px; }
+
+  .mock { border: 1px solid var(--line-bright); border-radius: 12px; background: #060a12; font-family: var(--mono); font-size: 13px; padding: 8px 0; box-shadow: 0 30px 60px -30px rgba(0,0,0,.8); }
+  .mock > div { display: flex; align-items: baseline; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  .mock > div:last-child { border-bottom: 0; }
+  .mock i { color: var(--quiet); font-style: normal; }
+  .mock b { color: var(--ink); font-weight: 500; }
+  .mock span { color: var(--quiet); font-size: 11px; margin-left: auto; }
+  .mock .on { background: rgba(104,169,255,.08); border-left: 2px solid var(--accent); padding-left: 18px; }
+  .mock .on span { color: var(--accent); }
+  .mock .dim { font-size: 11px; }
+
+  .prompt { margin-top: 20px; border: 1px solid var(--line-bright); border-radius: 12px; background: #060a12; padding: 22px 24px; position: relative; }
+  .prompt pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: var(--muted); white-space: pre-wrap; }
+  .prompt pre b { color: var(--ink); font-weight: 500; }
+  .prompt .btn { position: absolute; top: 14px; right: 14px; padding: 9px 12px; font-size: 10px; }
+
+  footer { display: flex; justify-content: space-between; align-items: center; padding: 40px 0 48px; border-top: 1px solid var(--line); margin-top: 60px; font-family: var(--mono); font-size: 11px; color: var(--quiet); letter-spacing: .06em; }
+  footer a { color: var(--muted); text-decoration: none; margin-left: 20px; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 860px) {
+    .hero, .feature, .feature:nth-child(odd) { grid-template-columns: 1fr; }
+    .feature .text { order: 0 !important; }
+    .shot img { transform: none; }
+    .vitals { grid-template-columns: 1fr 1fr; } .vitals div:nth-child(2) { border-right: 0; } .vitals div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    .sec ol { grid-template-columns: 1fr; } .sec li:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+    nav { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="#"><img src="icon.png" alt=""><div><span>Local console</span><b>Dockmaster</b></div></a>
+    <nav><a href="#modules">Modules</a><a href="#remote">Remote</a><a href="#security">Security</a><a href="#setup">Setup</a></nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow rise">Local berth monitor for macOS</div>
+      <h1 class="rise">Know what's running on <em>your</em> Mac.</h1>
+      <p class="lede rise">Stray dev servers, dirty repos, committed secrets, and forty gigs of node_modules. One dashboard on your loopback, for this Mac and any other Mac over SSH.</p>
+      <div class="cta rise">
+        <button class="btn primary" data-copy>Copy setup prompt</button>
+        <a class="btn" href="https://github.com/naman0r/dockmaster/stargazers">&uarr; Star on GitHub</a>
+        <a class="btn" href="https://github.com/naman0r/dockmaster">View source</a>
+      </div>
+      <p class="hint rise">Paste the prompt into your coding agent, or <code>git clone</code> and <code>npm start</code>. MIT licensed.</p>
+    </div>
+    <div class="shot"><img src="shots/harbor.webp" alt="Dockmaster Harbor overview with live module cards and system vitals"></div>
+  </section>
+
+  <div class="vitals">
+    <div><small>Binds to</small><b>127.0.0.1 only</b></div>
+    <div><small>Background scanning</small><b class="ok">none</b></div>
+    <div><small>Accounts, telemetry</small><b class="ok">none</b></div>
+    <div><small>Idle footprint</small><b>~0 CPU</b></div>
+  </div>
+
+  <section id="modules">
+    <div class="eyebrow">Modules</div>
+    <h2>Every berth in the harbor.</h2>
+    <p class="sub">Each module scans only while its page is open, and each one can be switched off. Destructive buttons are guarded and re-verified before they act.</p>
+
+    <div class="feature">
+      <div class="text"><div class="n">01 / PORTS</div><h3>Find the server you forgot about.</h3><p>Every listening TCP port with its project, process tree, and whether it is exposed to the LAN. Stop sends SIGTERM to the whole tree. Force kill is a separate, confirmed step.</p></div>
+      <img loading="lazy" src="shots/ports.webp" alt="Ports page listing dev servers with stop buttons">
+    </div>
+    <div class="feature">
+      <img loading="lazy" src="shots/repos.webp" alt="Repository status board">
+      <div class="text"><div class="n">02 / REPOS</div><h3>A status board for every repo.</h3><p>Dirty files, ahead and behind counts, stale branches, and the last commit for everything under your dev root. Copy a path or jump to GitHub from the row.</p></div>
+    </div>
+    <div class="feature">
+      <div class="text"><div class="n">03 / WORKTREES</div><h3>Dry dock for worktrees and stale branches.</h3><p>Linked worktrees, prunable leftovers, and branches untouched for 30 days. Remove and delete are one click, but the main worktree and default branches are off limits.</p></div>
+      <img loading="lazy" src="shots/worktrees.webp" alt="Worktrees and stale branches page">
+    </div>
+    <div class="feature">
+      <img loading="lazy" src="shots/secrets.webp" alt="Secrets audit page with redacted findings">
+      <div class="text"><div class="n">04 / SECRETS</div><h3>Catch the key before you push it.</h3><p>Credential-shaped strings in tracked files across every repo: cloud keys, tokens, private key blocks. Previews are redacted on the server. The full string never leaves the process.</p></div>
+    </div>
+    <div class="feature">
+      <div class="text"><div class="n">05 / DISK</div><h3>Reclaim the bilge.</h3><p>node_modules, build output, virtualenvs, and tool caches like DerivedData and Homebrew, sized with du. Clean only ever deletes a directory whose exact name is on the list.</p></div>
+      <img loading="lazy" src="shots/disk.webp" alt="Disk page showing reclaimable build artifacts and caches">
+    </div>
+    <div class="feature">
+      <img loading="lazy" src="shots/health.webp" alt="Health page with status and latency per check">
+      <div class="text"><div class="n">06 / HEALTH</div><h3>Is it up?</h3><p>A personal status page for localhost services and the external URLs you care about, with status code and latency. Also Hosts profiles, live process load, and a ⌘K palette that searches everything.</p></div>
+    </div>
+    <div class="feature">
+      <div class="mock" role="img" aria-label="Machine selector showing Mac and remote Homelab over SSH">
+        <div><i>&gt;</i><b>Mac</b><span>127.0.0.1</span></div>
+        <div class="on"><i>&gt;</i><b>Homelab</b><span>ssh over tailscale</span></div>
+        <div><i>&nbsp;</i><span class="dim">same dashboard, same guarded actions, zero remote listener</span></div>
+      </div>
+      <div id="remote" class="text"><div class="n">07 / REMOTE MACHINES</div><h3>Any Mac you can SSH to.</h3><p>Pick another machine in the header and every module runs there: ports with managed SSH forwarding, repo status, disk, health, secrets, all of it. A small companion process starts over your existing SSH session and exits when you leave. No cloud backend, no open port, no reverse tunnel. You only need SSH access between the machines; Tailscale is one way to get it.</p></div>
+    </div>
+  </section>
+
+  <section id="security">
+    <div class="eyebrow">Security model</div>
+    <h2>It can kill processes. So it defends itself.</h2>
+    <p class="sub">Dockmaster started as Port Authority. It keeps the same security model, hardened for a dashboard that runs all day.</p>
+    <div class="sec"><ol>
+      <li><i>01</i><div><b>Loopback only</b><span>Binds to 127.0.0.1. Middleware rejects any non-loopback Host header, so DNS rebinding gets nothing.</span></div></li>
+      <li><i>02</i><div><b>Per-process token</b><span>Every API call carries a token injected into the page under a custom header. That forces a CORS preflight, which is never answered, so the browser blocks cross-origin requests before they start.</span></div></li>
+      <li><i>03</i><div><b>Origin checked</b><span>Origin is validated on every API request. A missing or stale token is a 401. A refused action is a 403.</span></div></li>
+      <li><i>04</i><div><b>Fresh scan before every kill</b><span>Destructive actions re-verify identity against a fresh scan. Stale rows get a 409. Never PID 1, never Dockmaster or its ancestors, never another user's process.</span></div></li>
+      <li><i>05</i><div><b>Nothing runs unless you look</b><span>No background timers anywhere. Polling pauses when the tab is hidden. No accounts, no telemetry. The only outbound requests are the Health URLs you add yourself.</span></div></li>
+      <li><i>06</i><div><b>Hosts through the OS</b><span>Applying an /etc/hosts profile opens the macOS admin prompt. It backs up first and never touches sudoers.</span></div></li>
+    </ol></div>
+  </section>
+
+  <section id="setup">
+    <div class="eyebrow">Setup</div>
+    <h2>Ask your agent, or do it by hand.</h2>
+    <p class="sub">Requires macOS and Node 20.12 or newer. The production build idles at 150 to 200 MB and no CPU.</p>
+    <div class="prompt">
+      <button class="btn primary" data-copy>Copy</button>
+      <pre id="prompt"><b>Set up Dockmaster on this Mac: https://github.com/naman0r/dockmaster</b>
+
+Clone the repo or use an existing checkout, read the README, and check the
+requirements. Install dependencies, configure my development root, build and
+start the production app on loopback, and verify it works. Give me the URL
+and explain how to start and stop it. If I want to connect a homelab, follow
+docs/remote-machines.md using my existing SSH access.</pre>
+    </div>
+    <p class="hint">By hand: <code>git clone https://github.com/naman0r/dockmaster && cd dockmaster && npm install && npm run build && npm start</code></p>
+  </section>
+
+  <section class="contribute">
+    <div class="eyebrow">Open source</div>
+    <h2>Missing a module you want?</h2>
+    <p class="sub" style="margin-bottom:24px">MIT licensed, plain TypeScript, one process. If Dockmaster has stopped a stray server or freed a gig of cache for you, a <a href="https://github.com/naman0r/dockmaster/stargazers">star</a> helps, and a PR or issue gets a real reply.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/naman0r/dockmaster">Open a PR</a>
+      <a class="btn" href="https://github.com/naman0r/dockmaster/issues/new">File an issue</a>
+    </div>
+  </section>
+
+  <footer>
+    <span>Dockmaster / MIT / Naman Rusia</span>
+    <span><a href="https://github.com/naman0r/dockmaster">GitHub</a><a href="https://github.com/naman0r/dockmaster#readme">README</a><a href="https://github.com/naman0r/dockmaster/blob/main/docs/remote-machines.md">Remote machines</a></span>
+  </footer>
+</div>
+<script>
+  const text = document.getElementById("prompt").innerText;
+  for (const b of document.querySelectorAll("[data-copy]")) {
+    b.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(text);
+      const was = b.textContent; b.textContent = "Copied";
+      setTimeout(() => (b.textContent = was), 1400);
+    });
+  }
+</script>
+</body>
+</html>
