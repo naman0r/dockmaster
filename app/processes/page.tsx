@@ -5,11 +5,13 @@ import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
   Badge,
+  Bar,
   Button,
   EmptyState,
   ErrorNote,
   PageHeader,
   SearchInput,
+  Stat,
   Toggle,
   useToast,
 } from "@/components/ui";
@@ -135,9 +137,16 @@ export default function ProcessesPage() {
     );
   }, [data, query]);
 
+  // Bars scale to the busiest process in view, not to 100%: a 30% hog on an
+  // idle machine should still fill the row.
+  const maxCpu = Math.max(1, ...filtered.map((p) => p.cpuPct));
+  const maxMem = Math.max(1, ...filtered.map((p) => p.rssKb));
+  const totalCpu = filtered.reduce((acc, p) => acc + p.cpuPct, 0);
+  const totalMem = filtered.reduce((acc, p) => acc + p.rssKb, 0);
+
   // Shares the row grid so the labels sit exactly over their columns.
   const GRID =
-    "grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 px-[18px]";
+    "grid grid-cols-[auto_minmax(0,1fr)_112px_112px_100px] items-center gap-3.5 px-[18px]";
 
   return (
     <>
@@ -193,13 +202,17 @@ export default function ProcessesPage() {
         />
       ) : (
         <div className="flex flex-col gap-2">
+          <div className="mb-3 flex flex-wrap gap-x-10 gap-y-4">
+            <Stat value={`${totalCpu.toFixed(0)}%`} label={`cpu across ${filtered.length} sampled`} />
+            <Stat value={formatMem(totalMem)} label="resident memory, sampled" />
+          </div>
           <div
             className={`${GRID} pb-1 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet`}
           >
             <span>PID</span>
             <span>Command</span>
-            <span className="min-w-16 text-right">CPU</span>
-            <span className="min-w-[72px] text-right">Mem</span>
+            <span className="text-right">CPU</span>
+            <span className="text-right">Mem</span>
             <span />
           </div>
           {filtered.map((p) => {
@@ -211,7 +224,7 @@ export default function ProcessesPage() {
             return (
               <div
                 key={`${machine.id}:${p.pid}`}
-                className="card-surface grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright"
+                className={`${GRID} card-surface rounded-xl border border-line py-3.5 transition-colors hover:border-line-bright`}
               >
                 <span className="font-mono text-quiet">{p.pid}</span>
                 <div className="truncate">
@@ -223,13 +236,16 @@ export default function ProcessesPage() {
                     {p.command}
                   </span>
                 </div>
-                <span className="min-w-16 text-right font-mono text-muted">
-                  {p.cpuPct.toFixed(1)}%
+                <span className="flex flex-col items-end gap-1.5" title={`${p.cpuPct.toFixed(1)}% of one core`}>
+                  <span className="font-mono text-muted">{p.cpuPct.toFixed(1)}%</span>
+                  <Bar pct={(p.cpuPct / maxCpu) * 100} alarm={p.cpuPct >= 100} />
                 </span>
-                <span className="min-w-[72px] text-right font-mono text-muted">
-                  {formatMem(p.rssKb)}
+                <span className="flex flex-col items-end gap-1.5" title={`${p.rssKb.toLocaleString()} KB resident`}>
+                  <span className="font-mono text-muted">{formatMem(p.rssKb)}</span>
+                  <Bar pct={(p.rssKb / maxMem) * 100} />
                 </span>
                 {mine ? (
+                  <span className="justify-self-end">
                   <Button
                     variant={force ? "force" : "stop"}
                     busy={busyPid === p.pid}
@@ -239,8 +255,11 @@ export default function ProcessesPage() {
                   >
                     {busyPid === p.pid ? "…" : force ? "Force kill" : "Stop"}
                   </Button>
+                  </span>
                 ) : (
-                  <Badge variant="quiet">{p.user}</Badge>
+                  <span className="justify-self-end">
+                    <Badge variant="quiet">{p.user}</Badge>
+                  </span>
                 )}
               </div>
             );

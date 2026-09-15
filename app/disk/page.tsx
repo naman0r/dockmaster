@@ -5,6 +5,7 @@ import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
   Badge,
+  Bar,
   Button,
   Card,
   EmptyState,
@@ -35,7 +36,36 @@ function formatKb(kb: number): string {
 }
 
 const ROW =
-  "card-surface grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright";
+  "card-surface grid grid-cols-[minmax(0,1fr)_minmax(80px,220px)_auto_auto] items-center gap-3.5 rounded-xl border border-line px-3.5 py-2.5 transition-colors hover:border-line-bright";
+
+// Part-to-whole of the volume: what is used and kept, what could be freed,
+// what is free now. Segments keep a 2px surface gap so they read as three.
+function VolumeBar({ totalKb, freeKb, reclaimableKb }: { totalKb: number; freeKb: number; reclaimableKb: number }) {
+  const reclaim = Math.min(reclaimableKb, totalKb - freeKb);
+  const kept = totalKb - freeKb - reclaim;
+  const segments = [
+    { label: "in use", kb: kept, className: "bg-line-bright" },
+    { label: "reclaimable", kb: reclaim, className: "bg-accent" },
+    { label: "free", kb: freeKb, className: "bg-line" },
+  ];
+  return (
+    <div className="mb-6">
+      <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-[4px]" aria-hidden="true">
+        {segments.map((s) => (
+          <span key={s.label} className={`h-full ${s.className}`} style={{ width: `${(s.kb / totalKb) * 100}%` }} />
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[10px] uppercase tracking-[0.1em] text-quiet">
+        {segments.map((s) => (
+          <span key={s.label} className="flex items-center gap-1.5">
+            <span className={`inline-block size-2 rounded-[2px] ${s.className}`} aria-hidden="true" />
+            {s.label} {formatKb(s.kb)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function DiskPage() {
   const { apiGet, apiPost, remote, machine, status } = useMachineApi();
@@ -106,6 +136,12 @@ export default function DiskPage() {
 
   const data = snap?.data;
   const repos = data?.repos.filter((r) => r.artifacts.length) || [];
+  // One scale for every row on the page so bars compare across repos and caches.
+  const maxKb = Math.max(
+    1,
+    ...repos.flatMap((r) => r.artifacts.map((a) => a.sizeKb)),
+    ...(data?.caches.map((c) => c.sizeKb) || []),
+  );
 
   return (
     <>
@@ -146,6 +182,7 @@ export default function DiskPage() {
               />
             )}
           </div>
+          {disk && <VolumeBar totalKb={disk.totalKb} freeKb={disk.freeKb} reclaimableKb={data.reclaimableKb} />}
           <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Repos with artifacts</span>
             <span className="text-quiet tracking-[0.08em]">{repos.length} of {data.repos.length}</span>
@@ -168,6 +205,7 @@ export default function DiskPage() {
                       <span className="truncate font-mono text-muted" title={a.path}>
                         {a.name}
                       </span>
+                      <Bar pct={(a.sizeKb / maxKb) * 100} alarm={a.sizeKb >= 1024 * 1024} />
                       <Badge variant={a.sizeKb >= 1024 * 1024 ? "alarm" : "quiet"}>{formatKb(a.sizeKb)}</Badge>
                       <Button variant="stop" busy={busy === a.path} onClick={() => void clean(a.path, a.name)}>
                         Clean
@@ -195,6 +233,7 @@ export default function DiskPage() {
                         {c.path}
                       </span>
                     </div>
+                    <Bar pct={(c.sizeKb / maxKb) * 100} alarm={c.sizeKb >= 1024 * 1024} />
                     <Badge variant={c.sizeKb >= 1024 * 1024 ? "alarm" : "quiet"}>{formatKb(c.sizeKb)}</Badge>
                     <Button variant="stop" busy={busy === c.path} onClick={() => void clean(c.path, c.label)}>
                       Clean

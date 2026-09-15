@@ -214,6 +214,19 @@ export function Stat({ value, label }: { value: ReactNode; label: string }) {
   );
 }
 
+// Length encodes magnitude; the number beside it is the label, so the bar is
+// decorative to assistive tech. Scale pct against the largest value in view.
+export function Bar({ pct, alarm }: { pct: number; alarm?: boolean }) {
+  return (
+    <span aria-hidden="true" className="block h-1.5 w-full overflow-hidden rounded-[3px] bg-line">
+      <span
+        className={`block h-full rounded-[3px] ${alarm ? "bg-alarm" : "bg-accent"}`}
+        style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+      />
+    </span>
+  );
+}
+
 type ToastFn = (message: string, alarm?: boolean) => void;
 
 const ToastContext = createContext<ToastFn>(() => {});
