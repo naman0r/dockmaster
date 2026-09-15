@@ -1,7 +1,7 @@
 "use client";
 
 import { OpenRemotePort, TunnelList } from "@/components/port-tunnels";
-import { targetId } from "@/lib/command-palette";
+import { targetHref, targetId } from "@/lib/command-palette";
 
 import { useCallback, useMemo, useState } from "react";
 import { useMachineApi, MachineNotice } from "@/components/machine-api";
@@ -24,6 +24,7 @@ type Service = {
   addresses: string[];
   kind: string;
   project: string;
+  repoPath: string;
   cwd: string;
   argv: string;
   user: string;
@@ -310,9 +311,22 @@ export default function PortsPage() {
                   <div className="mb-2.5 flex min-w-0 items-center gap-2">
                     <h3
                       className="m-0 min-w-0 truncate text-base font-[650]"
-                      title={s.project}
+                      title={s.repoPath ? `Open ${s.project} in Repos` : s.project}
                     >
-                      {s.project}
+                      {s.repoPath ? (
+                        <a
+                          className="text-ink no-underline hover:text-accent"
+                          href={targetHref(
+                            "/repos",
+                            "repo",
+                            remote ? `${machine.id}:${s.repoPath}` : s.repoPath,
+                          )}
+                        >
+                          {s.project}
+                        </a>
+                      ) : (
+                        s.project
+                      )}
                     </h3>
                     <Badge>{s.kind}</Badge>
                     <Badge variant={s.isExposed ? "exposed" : "scope"}>

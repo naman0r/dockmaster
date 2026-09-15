@@ -99,6 +99,7 @@ const service = z.object({
   addresses: z.array(str).max(100),
   kind: str,
   project: str,
+  repoPath: str,
   cwd: str,
   argv: str,
   user: str,
