@@ -137,24 +137,3 @@ DOCKMASTER_PORT=36253 DOCKMASTER_DATA_DIR=/private/tmp/dockmaster-remote-validat
 
 Open `http://127.0.0.1:36253/settings`. The installed agent keeps serving `.next` from
 the main checkout. Remove the worktree when done.
-
-Verified 2026-09-09 from the main Mac, checkout `/Users/you/Developer/dockmaster`, branch `feat/remote-machines`; PR #5. The original milestone was committed/pushed before expanding the feature set.
-
-- Final checks: 142 Vitest tests, three isolated Python helper tests, TypeScript checking, companion bundle and production build passed.
-- Baseline: 101 tests, typecheck and production build passed. The initial remote slice subsequently passed 124 tests and actual same-port/disconnect/reconnect checks.
-- Expanded live checks: all eight remote read modules returned ready. System CPU/RAM and process samples were collected on the homelab. A fixture secret was fully redacted before transport.
-- A fixture HTTP server on port 39188 was opened through the forward while the same local port was occupied. Port fallback, HTTP content, mapping reuse, and explicit cleanup passed.
-- Health create/run/delete used target-local HTTP. Hosts read/save/delete used isolated data; `/etc/hosts` remained untouched. A disposable Git worktree was removed, its branch deleted, and pruning exercised. A fixture process was terminated through Processes. A stale process identity was refused; a separate fixture listener was stopped through the guarded Ports action. Existing services were not terminated.
-- Fixtures used `/Users/you/Services/dockmaster/validation`, separate from normal companion data. Temporary machine entries, mappings, test listeners and the fixture directory were removed afterward.
-- Unit/DOM tests cover protocol validation, connection loss/backoff, lease/session isolation, no replay, identity checks, symlink escapes, forwarding collisions/reuse, hidden polling, machine switching, shared Notepad and guarded UI requests. Run `npm test` with permission to bind loopback sockets. Run `python3 scripts/test-hosts-helper.py` for isolated helper validation; it never touches the real Hosts file.
-- Browser automation had no connected browser, so visual walkthrough remains unverified. Real privileged Hosts application, actual LaunchAgent-session behavior, and an outside-home network test remain manual validation items. Linux, continuous historical monitoring and persistent tunnel mappings remain future work.
-
-Memory usage excludes file-backed and purgeable cache using macOS `vm_stat` counters. Cached memory is shown separately; unused RAM is physical free memory, not the `memory_pressure` free percentage. Values can differ slightly from Activity Monitor due to sampling and accounting. Rebuild and install companion 2.0.1 for this correction.
-
-Verified 2026-09-09 from the main Mac through the guarded local API: homelab companion 2.0.1 reported 34.31 GiB used, 28.18 GiB cached, and 2.36% physical free memory. Installed at `/Users/you/Services/dockmaster/companion.cjs`; the previous bundle is saved beside it as `companion.cjs.before-memory-fix`. Only the Dockmaster companion connection was refreshed. Restoring the backup also requires the matching backend version. Activity Monitor comparison used the supplied screenshot, not simultaneous samples.
-
-Companion 2.0.2 collects process names and start times together and rejects PID reuse between CPU samples. Tunnel creation stays bound to the validated SSH configuration and rechecks authorization after binding the local port. Upgrade the companion for the process identity fix.
-
-Verified 2026-09-09: installed companion 2.0.2 on the homelab and refreshed only its Dockmaster connection. The guarded dashboard API returned 36 homelab and 39 local process rows with names and start identities. No processes were signaled. The previous homelab bundle is `companion.cjs.before-identity-fix` (rollback requires its matching backend). Configuration-change tunnel races are covered by isolated loopback tests.
-
-Verified 2026-09-11: installed companion 2.1.0 (Disk) on the homelab at `/Users/you/Services/dockmaster/companion.cjs` over SSH and ran its hello handshake with the configured Node binary; it reported capabilities including `disk`. The previous bundle is saved as `companion.cjs.before-disk` (it was the parallel agents-branch 2.1.0 build; restoring it requires that branch's backend). Nothing was cleaned or scanned on the homelab during installation.
