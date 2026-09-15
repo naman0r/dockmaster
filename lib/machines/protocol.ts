@@ -272,6 +272,9 @@ const schemas = {
       )
       .max(20000),
     untrackedEnvFiles: z.array(z.object({ repo: str, path: str })).max(10000),
+    envDrift: z
+      .array(z.object({ repo: str, example: str, missing: z.array(str).max(1000) }))
+      .max(10000),
   }),
   disk: z.object({
     root: str,

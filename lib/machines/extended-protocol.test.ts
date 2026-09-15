@@ -40,6 +40,7 @@ it("rejects secret previews containing raw or partially redacted values", () => 
       },
     ],
     untrackedEnvFiles: [],
+    envDrift: [],
   };
   expect(() =>
     parseResult("secrets", { cachedAt: new Date().toISOString(), data }),

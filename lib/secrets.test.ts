@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { redact, matchLine, isInterestingFile, RULES } from "./secrets";
+import { redact, matchLine, isInterestingFile, envKeys, RULES } from "./secrets";
 
 describe("redact", () => {
   it("never returns the full secret", () => {
@@ -67,5 +67,12 @@ describe("rules", () => {
       expect(rule.id).toBeTruthy();
       expect(rule.label).toBeTruthy();
     }
+  });
+});
+
+describe("envKeys", () => {
+  it("collects assignment keys and ignores comments, blanks, and values", () => {
+    const keys = envKeys("# comment\nAPI_KEY=abc\nexport DB_URL = postgres://x\n\n  SPACED=1\nnot a key\n");
+    expect([...keys]).toEqual(["API_KEY", "DB_URL", "SPACED"]);
   });
 });
