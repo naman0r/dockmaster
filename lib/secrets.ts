@@ -123,10 +123,42 @@ export function isInterestingFile(relPath: string): boolean {
 const MAX_FILE_BYTES = 512 * 1024;
 const MAX_FILES_PER_REPO = 400;
 
-type RepoResult = { findings: Finding[]; untrackedEnv: string[] };
+const ENV_TEMPLATES = [".env.example", ".env.sample", ".env.template"];
+
+// Keys only; values are never read into a structure or returned.
+export function envKeys(content: string): Set<string> {
+  const keys = new Set<string>();
+  for (const line of content.split("\n")) {
+    const m = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line);
+    if (m) keys.add(m[1]);
+  }
+  return keys;
+}
+
+export type EnvDrift = { repo: string; example: string; missing: string[] };
+
+// Keys the template declares that the local .env does not set. Only reported
+// when both files exist; a repo without a .env is not drift, it is setup.
+async function envDrift(repoPath: string, entries: string[]): Promise<EnvDrift | null> {
+  const example = ENV_TEMPLATES.find((name) => entries.includes(name));
+  if (!example || !entries.includes(".env")) return null;
+  try {
+    const [wanted, have] = await Promise.all(
+      [example, ".env"].map((name) =>
+        fs.readFile(path.join(repoPath, name), "utf8").then(envKeys),
+      ),
+    );
+    const missing = [...wanted].filter((k) => !have.has(k)).sort();
+    return missing.length ? { repo: path.basename(repoPath), example, missing } : null;
+  } catch {
+    return null;
+  }
+}
+
+type RepoResult = { findings: Finding[]; untrackedEnv: string[]; drift: EnvDrift | null };
 
 async function scanRepo(repoPath: string): Promise<RepoResult> {
-  const result: RepoResult = { findings: [], untrackedEnv: [] };
+  const result: RepoResult = { findings: [], untrackedEnv: [], drift: null };
   let tracked: string[];
   try {
     const out = await exec(["git", "-C", repoPath, "ls-files"], {
@@ -152,6 +184,7 @@ async function scanRepo(repoPath: string): Promise<RepoResult> {
     // Repo directory unreadable; tracked scan above already failed silently.
   }
   result.untrackedEnv = entries.filter((name) => !trackedSet.has(name));
+  result.drift = await envDrift(repoPath, entries);
 
   await mapLimit(candidates, 8, async (rel) => {
     const full = path.join(repoPath, rel);
@@ -199,6 +232,7 @@ export async function scanSecrets(): Promise<{
   scannedRepos: number;
   findings: Finding[];
   untrackedEnvFiles: Array<{ repo: string; path: string }>;
+  envDrift: EnvDrift[];
 }> {
   const root = devRoot();
   const repoPaths = await findRepos(root, walkDepth());
@@ -219,5 +253,6 @@ export async function scanSecrets(): Promise<{
         path: p,
       })),
     ),
+    envDrift: results.flatMap((r) => (r.drift ? [r.drift] : [])),
   };
 }

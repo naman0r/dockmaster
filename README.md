@@ -2,6 +2,8 @@
 
 **Know what’s running on your Mac and your homelab.**
 
+macOS only · Node 20.12+ · MIT · [trydockmaster.vercel.app](https://trydockmaster.vercel.app)
+
 Find stray dev servers, inspect repos and worktrees, and check system health from one local dashboard.
 
 Dockmaster grew out of [Port Authority](legacy/port_authority.py) — the single-file port
@@ -37,7 +39,8 @@ Prefer doing it yourself? See [Run it](#run-it) below.
 | **Health**    | "Is it up?" — a personal status page for localhost services and external URLs, with status code and latency.                                                                                                                                                              |
 | **Hosts**     | /etc/hosts viewer with profiles. Applying opens the macOS admin prompt (no sudoers edits), always backs up first, flushes the DNS cache.                                                                                                                                  |
 | **Processes** | Instantaneous CPU (two ps samples, one second apart) and memory. Stop is guarded like Ports: own processes only, never PID 1 or Dockmaster's ancestors.                                                                                                                   |
-| **Secrets**   | Credential-shaped strings in _tracked_ files across all repos (AWS/Slack/GitHub/Google/OpenAI keys, private key blocks, generic assignments). Previews are redacted server-side; the API never returns full secret text. Also lists untracked .env files (the good kind). |
+| **Secrets**   | Credential-shaped strings in _tracked_ files across all repos (AWS/Slack/GitHub/Google/OpenAI keys, private key blocks, generic assignments). Previews are redacted server-side; the API never returns full secret text. Also lists untracked .env files (the good kind) and keys your .env.example declares that .env does not set. |
+| **Containers** | Every container the Docker daemon knows about (Docker Desktop or OrbStack), with compose project, image, ports, and a stop that re-verifies the container id before asking the daemon for a graceful shutdown. Nothing is removed. |
 | **Disk**      | Reclaimable space: node_modules, build output, virtualenvs and similar under every repo, plus tool caches in your home directory (Xcode DerivedData, Homebrew, npm, pnpm, pip, Cargo, Go). Sizes come from `du`. Clean only ever deletes a directory whose exact name is on the artifact list or whose path is a known cache; symlinks are refused.                                                   |
 | **Logbook**   | "Which project had you today" — samples the frontmost app via osascript. Fully demand-driven: it records only while the page is open and visible. Window titles are never stored.                                                                                         |
 | **Notepad**   | Local scratch pad: timestamped dev notes (tools you found, snippets, ideas) stored in `~/.dockmaster/notes.json`.                                                                                                                                                         |
@@ -174,18 +177,20 @@ npm run typecheck
 npm test        # vitest — parsers and safety guards
 ```
 
-Contributions are welcome!
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the module recipe; [AGENTS.md](AGENTS.md) has the architecture notes and the invariants every change must keep.
 
 
 ---
 
-<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/a0c42229-0ad2-44f6-b1bd-9713754bf310" />
-<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/88d9587a-7806-4fb5-8a2b-bb804c6aabb0" />
-<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/73c56770-3be1-4884-bc31-29d401de5856" />
-<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/1bc4ca55-df81-48b1-adf1-bfed1655c3be" />
-<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/ad8766ca-d574-4a3b-9667-94d7a2aaf3d7" />
-<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/f0dd5e06-2556-4e9c-927b-06ed31a2304c" />
-<img width="250" height="" alt="image" src="https://github.com/user-attachments/assets/924d9aa4-3467-45ec-94d7-1de1d12da456" />
+<p>
+<img width="250" alt="Harbor" src="site/shots/harbor.webp" />
+<img width="250" alt="Ports" src="site/shots/ports.webp" />
+<img width="250" alt="Repos" src="site/shots/repos.webp" />
+<img width="250" alt="Worktrees" src="site/shots/worktrees.webp" />
+<img width="250" alt="Secrets" src="site/shots/secrets.webp" />
+<img width="250" alt="Disk" src="site/shots/disk.webp" />
+<img width="250" alt="Health" src="site/shots/health.webp" />
+</p>
 
 
 

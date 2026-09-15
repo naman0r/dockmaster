@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 import { exec } from "@/lib/exec";
 import { TtlCache } from "@/lib/cache";
+import { devRoot } from "@/lib/settings";
 
 export const LSOF = "/usr/sbin/lsof";
 const PS = "/bin/ps";
@@ -14,6 +15,9 @@ export type Service = {
   addresses: string[];
   kind: string;
   project: string;
+  // Git root the cwd sits in, when that root is under the dev root (so the
+  // Repos page knows it); "" otherwise.
+  repoPath: string;
   cwd: string;
   argv: string;
   user: string;
@@ -197,19 +201,19 @@ export function classify(argv: string, command: string): { kind: string; knownDe
   return { kind: fallbackKind(argv, command), knownDev: false };
 }
 
-export async function findProject(cwd: string): Promise<string> {
-  if (!cwd || cwd === "/") return "";
+export async function findProject(cwd: string): Promise<{ name: string; repoPath: string }> {
+  if (!cwd || cwd === "/") return { name: "", repoPath: "" };
   let current = path.resolve(cwd);
   for (let i = 0; i < 20; i++) {
     const hasGit = await fs
       .access(path.join(current, ".git"))
       .then(() => true, () => false);
-    if (hasGit) return path.basename(current);
+    if (hasGit) return { name: path.basename(current), repoPath: current };
     const parent = path.dirname(current);
     if (parent === current) break;
     current = parent;
   }
-  return path.basename(cwd);
+  return { name: path.basename(cwd), repoPath: "" };
 }
 
 export function isLoopbackAddress(address: string): boolean {
@@ -299,10 +303,11 @@ async function collectServices(): Promise<Service[]> {
   ]);
   const details = parseDetailOutput(detailOutput);
   const cwds = parseCwdOutput(cwdOutput);
-  const projectCache = new Map<string, string>();
+  const projectCache = new Map<string, { name: string; repoPath: string }>();
   const services: Service[] = [];
   const uid = process.getuid!();
   const homePrefix = `${os.homedir()}/`;
+  const rootPrefix = `${devRoot()}/`;
 
   for (const [pid, listener] of listeners) {
     const detail = details.get(pid);
@@ -311,7 +316,8 @@ async function collectServices(): Promise<Service[]> {
     const argv = detail.argv || listener.command;
     const { kind, knownDev } = classify(argv, listener.command);
     if (!projectCache.has(cwd)) projectCache.set(cwd, await findProject(cwd));
-    let project = projectCache.get(cwd)!;
+    const found = projectCache.get(cwd)!;
+    let project = found.name;
     if (INFRASTRUCTURE_KINDS.has(kind) && !cwd.startsWith(homePrefix)) {
       project = kind;
     }
@@ -345,6 +351,7 @@ async function collectServices(): Promise<Service[]> {
         addresses,
         kind,
         project: project || kind,
+        repoPath: found.repoPath.startsWith(rootPrefix) ? found.repoPath : "",
         cwd,
         argv,
         user: detail.user || listener.user,

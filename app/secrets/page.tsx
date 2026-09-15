@@ -24,6 +24,7 @@ type Finding = {
 };
 
 type Untracked = { repo: string; path: string };
+type EnvDrift = { repo: string; example: string; missing: string[] };
 
 type Snapshot = {
   enabled: boolean;
@@ -32,6 +33,7 @@ type Snapshot = {
     scannedRepos: number;
     findings: Finding[];
     untrackedEnvFiles: Untracked[];
+    envDrift: EnvDrift[];
   } | null;
   scanMs?: number;
 };
@@ -171,6 +173,29 @@ export default function SecretsPage() {
                 </div>
               </Card>
             ))
+          )}
+          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+            <span>Env drift</span>
+            <span className="text-quiet tracking-[0.08em]">
+              {data.envDrift.length} {data.envDrift.length === 1 ? "repo" : "repos"}
+            </span>
+          </div>
+          {data.envDrift.length === 0 ? (
+            <p className="font-mono text-[11px] leading-relaxed text-quiet">
+              Every .env sets all the keys its example file declares.
+            </p>
+          ) : (
+            <Card className="p-[22px_24px]">
+              <div className="flex flex-col gap-2">
+                {data.envDrift.map((d) => (
+                  <div key={d.repo} className="font-mono text-xs">
+                    <span className="text-accent">{d.repo}</span>
+                    <span className="text-quiet"> .env is missing {d.missing.length} of {d.example}: </span>
+                    <span className="text-muted break-all">{d.missing.join(", ")}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
           )}
           <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
             <span>Untracked .env files</span>

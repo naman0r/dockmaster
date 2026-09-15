@@ -8,8 +8,9 @@ import type { CheckResult } from "@/lib/health";
 import type { HostEntry } from "@/lib/hosts";
 import type { scanSecrets } from "@/lib/secrets";
 import type { DiskData } from "@/lib/disk";
+import type { ContainersData } from "@/lib/containers";
 export const VERSION = 2;
-export const COMPANION_VERSION = "2.1.0";
+export const COMPANION_VERSION = "2.2.0";
 export const MAX_MESSAGE = 2 * 1024 * 1024;
 export const READ_OPERATIONS = [
   "ports",
@@ -21,6 +22,7 @@ export const READ_OPERATIONS = [
   "hosts",
   "secrets",
   "disk",
+  "containers",
 ] as const;
 export type ReadOperation = (typeof READ_OPERATIONS)[number];
 export type Operation = "hello" | ReadOperation | "action";
@@ -61,7 +63,8 @@ export type Payloads = {
   hosts: HostsData;
   secrets: Awaited<ReturnType<typeof scanSecrets>>;
   disk: DiskData;
-  action: { ok: boolean; stillAlive?: boolean; stillListening?: boolean; freedKb?: number };
+  containers: ContainersData;
+  action: { ok: boolean; stillAlive?: boolean; stillListening?: boolean; stillRunning?: boolean; freedKb?: number };
 };
 export type Result<K extends Operation = Operation> = {
   cachedAt: string;
@@ -96,6 +99,7 @@ const service = z.object({
   addresses: z.array(str).max(100),
   kind: str,
   project: str,
+  repoPath: str,
   cwd: str,
   argv: str,
   user: str,
@@ -144,6 +148,7 @@ const schemas = {
   repos: z.object({
     root: str,
     depth: integer,
+    nodeRunning: str,
     repos: z
       .array(
         z.object({
@@ -159,6 +164,7 @@ const schemas = {
           lastCommitIso: str,
           lastCommitSubject: str,
           staleBranches: integer,
+          nodeWanted: str,
           error: str,
         }),
       )
@@ -268,6 +274,9 @@ const schemas = {
       )
       .max(20000),
     untrackedEnvFiles: z.array(z.object({ repo: str, path: str })).max(10000),
+    envDrift: z
+      .array(z.object({ repo: str, example: str, missing: z.array(str).max(1000) }))
+      .max(10000),
   }),
   disk: z.object({
     root: str,
@@ -284,8 +293,26 @@ const schemas = {
     caches: z.array(z.object({ label: str, path: str, sizeKb: num })).max(100),
     reclaimableKb: num,
   }),
+  containers: z.object({
+    unavailable: str.nullable(),
+    containers: z
+      .array(
+        z.object({
+          id: z.string().regex(/^[0-9a-f]{12,64}$/),
+          name: str,
+          image: str,
+          state: str,
+          status: str,
+          ports: str,
+          project: str,
+          createdAt: str,
+        }),
+      )
+      .max(10000),
+  }),
   action: z.object({
     ok: z.boolean(),
+    stillRunning: z.boolean().optional(),
     stillAlive: z.boolean().optional(),
     stillListening: z.boolean().optional(),
     freedKb: num.optional(),
@@ -363,6 +390,13 @@ export const actionSchema = z.discriminatedUnion("action", [
     .object({ action: z.literal("hosts.apply"), id: str.min(1), revision })
     .strict(),
   z.object({ action: z.literal("disk.clean"), path: absolute }).strict(),
+  z
+    .object({
+      action: z.literal("containers.stop"),
+      id: z.string().regex(/^[0-9a-f]{12,64}$/),
+      createdAt: str.min(1),
+    })
+    .strict(),
 ]);
 export type Action = z.infer<typeof actionSchema>;
 const requestSchema = z

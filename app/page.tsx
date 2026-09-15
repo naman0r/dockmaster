@@ -99,7 +99,13 @@ const MODULES: ModuleCard[] = [
       const repos = (s.data as { repos?: Array<{ dirty: number; ahead: number }> } | null)?.repos || [];
       const dirty = repos.filter((r) => r.dirty > 0).length;
       const ahead = repos.filter((r) => r.ahead > 0).length;
-      return { value: String(dirty || repos.length), label: dirty ? `dirty of ${repos.length}` : `${ahead} unpushed` };
+      const attention = repos.filter((r) => r.dirty > 0 || r.ahead > 0).length;
+      const parts = [dirty && `${dirty} dirty`, ahead && `${ahead} unpushed`].filter(Boolean);
+      return {
+        value: String(attention || repos.length),
+        label: parts.length ? parts.join(" · ") : `${repos.length === 1 ? "repo" : "repos"} clean`,
+        tone: parts.length ? undefined : "ok",
+      };
     },
   },
   {
@@ -179,6 +185,19 @@ const MODULES: ModuleCard[] = [
       if (kb === undefined) return { value: "—", label: "open Disk to scan" };
       const gb = kb / 1024 / 1024;
       return { value: gb >= 1 ? `${gb.toFixed(1)}G` : `${Math.round(kb / 1024)}M`, label: "reclaimable", tone: gb >= 20 ? "alarm" : undefined };
+    },
+  },
+  {
+    href: "/containers",
+    glyph: "CT",
+    title: "Containers",
+    description: "Docker containers on this machine, with a guarded stop.",
+    endpoint: "/api/containers",
+    metric: (s) => {
+      const data = s.data as { unavailable?: string | null; containers?: Array<{ state: string }> } | null;
+      if (data?.unavailable) return { value: "—", label: "daemon off" };
+      const n = (data?.containers || []).filter((c) => c.state === "running").length;
+      return { value: String(n), label: "running" };
     },
   },
   {
