@@ -99,7 +99,13 @@ const MODULES: ModuleCard[] = [
       const repos = (s.data as { repos?: Array<{ dirty: number; ahead: number }> } | null)?.repos || [];
       const dirty = repos.filter((r) => r.dirty > 0).length;
       const ahead = repos.filter((r) => r.ahead > 0).length;
-      return { value: String(dirty || repos.length), label: dirty ? `dirty of ${repos.length}` : `${ahead} unpushed` };
+      const attention = repos.filter((r) => r.dirty > 0 || r.ahead > 0).length;
+      const parts = [dirty && `${dirty} dirty`, ahead && `${ahead} unpushed`].filter(Boolean);
+      return {
+        value: String(attention || repos.length),
+        label: parts.length ? parts.join(" · ") : `${repos.length === 1 ? "repo" : "repos"} clean`,
+        tone: parts.length ? undefined : "ok",
+      };
     },
   },
   {

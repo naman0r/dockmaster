@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import {
@@ -40,16 +40,69 @@ export default function HealthPage() {
   const [adding, setAdding] = useState(false);
   const [checking, setChecking] = useState(false);
   const [enabled, setEnabled] = useState(true);
+  const [notify, setNotify] = useState(false);
+  const lastOk = useRef(new Map<string, boolean | null>());
   const toast = useToast();
+
+  useEffect(() => {
+    try {
+      setNotify(localStorage.getItem("dockmaster:health-notify") === "1");
+    } catch {
+      /* Preference only. */
+    }
+  }, []);
+
+  // Browser notifications, not a server timer: they only fire while this
+  // page is open, which keeps the module demand-driven.
+  const announce = useCallback(
+    (checks: Check[]) => {
+      const previous = lastOk.current;
+      const next = new Map(checks.map((c) => [c.id, c.lastOk]));
+      if (notify && previous.size && Notification.permission === "granted") {
+        for (const c of checks) {
+          const was = previous.get(c.id);
+          if (was === undefined || was === c.lastOk) continue;
+          new Notification(
+            c.lastOk ? `${c.label} is back up` : `${c.label} is down`,
+            { body: c.lastOk ? c.url : `${c.url}${c.error ? ` — ${c.error}` : ""}`, tag: c.id },
+          );
+        }
+      }
+      lastOk.current = next;
+    },
+    [notify],
+  );
 
   const refresh = useCallback(async () => {
     try {
-      setSnap(await apiGet<Snapshot>("/api/health"));
+      const next = await apiGet<Snapshot>("/api/health");
+      setSnap(next);
       setError("");
+      announce(next.data?.checks || []);
     } catch (err) {
       setError(`Checks unavailable: ${(err as Error).message}`);
     }
-  }, []);
+  }, [announce]);
+
+  const toggleNotify = useCallback(
+    async (next: boolean) => {
+      if (next && typeof Notification === "undefined") {
+        toast("This browser does not support notifications.", true);
+        return;
+      }
+      if (next && (await Notification.requestPermission()) !== "granted") {
+        toast("Notifications are blocked for this site.", true);
+        return;
+      }
+      setNotify(next);
+      try {
+        localStorage.setItem("dockmaster:health-notify", next ? "1" : "0");
+      } catch {
+        /* Preference only. */
+      }
+    },
+    [toast],
+  );
 
   usePoll(refresh, 15_000);
 
@@ -130,6 +183,7 @@ export default function HealthPage() {
         <Button busy={checking} onClick={runNow}>
           {checking ? "Checking…" : "Check all now"}
         </Button>
+        <Toggle checked={notify} onChange={toggleNotify} label="Notify on change" />
         <span className="font-mono text-[11px] leading-relaxed text-quiet">
           {snap?.cachedAt
             ? `updated ${new Date(snap.cachedAt).toLocaleTimeString()}`
