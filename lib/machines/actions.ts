@@ -15,6 +15,7 @@ import {
 import { addCheck, removeCheck, resultsCache } from "@/lib/health";
 import { saveProfile, deleteProfile } from "@/lib/hosts";
 import { cleanTarget } from "@/lib/disk";
+import { stopContainer } from "@/lib/containers";
 import { devRoot } from "@/lib/settings";
 import { applyRemoteHosts } from "./remote-hosts";
 import { actionSchema, type Action, type Payloads } from "./protocol";
@@ -73,6 +74,7 @@ export async function executeAction(raw: Action): Promise<Payloads["action"]> {
     return { ok: true };
   }
   if (a.action === "disk.clean") return { ok: true, ...(await cleanTarget(a.path)) };
+  if (a.action === "containers.stop") return stopContainer(a.id, a.createdAt);
   if (a.action === "health.add") {
     await addCheck(a.label, a.url);
     resultsCache.invalidate();

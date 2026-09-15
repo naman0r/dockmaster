@@ -134,6 +134,7 @@ export function MachineBoundary({ children }: { children: ReactNode }) {
           "/hosts",
           "/secrets",
           "/disk",
+          "/containers",
           "/settings",
           "/notepad",
         ].includes(pathname) ? (

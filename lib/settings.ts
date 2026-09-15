@@ -11,6 +11,7 @@ export const MODULES = [
   "processes",
   "secrets",
   "disk",
+  "containers",
   "logbook",
 ] as const;
 
@@ -30,6 +31,7 @@ const DEFAULTS: Settings = {
     processes: true,
     secrets: true,
     disk: true,
+    containers: true,
     logbook: false,
   },
 };

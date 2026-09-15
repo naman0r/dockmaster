@@ -8,6 +8,7 @@ export const MODULE_LINKS = [
   { href: "/processes", glyph: "PC", label: "Processes", description: "CPU and memory usage" },
   { href: "/secrets", glyph: "SC", label: "Secrets", description: "Credential findings and environment hygiene" },
   { href: "/disk", glyph: "DK", label: "Disk", description: "Reclaimable build artifacts and tool caches" },
+  { href: "/containers", glyph: "CT", label: "Containers", description: "Docker containers with a guarded stop" },
   { href: "/logbook", glyph: "LB", label: "Logbook", description: "Project activity and time tracking" },
   { href: "/notepad", glyph: "NP", label: "Notepad", description: "Notes, snippets and ideas" },
 ];

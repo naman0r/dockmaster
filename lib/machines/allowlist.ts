@@ -8,6 +8,7 @@ const READ_OPERATIONS = [
   "hosts",
   "secrets",
   "disk",
+  "containers",
 ];
 export function remoteRouteAllowed(method: string, pathname: string): boolean {
   if (
@@ -29,6 +30,7 @@ export function remoteRouteAllowed(method: string, pathname: string): boolean {
       "/api/hosts/delete",
       "/api/health/checks",
       "/api/disk/clean",
+      "/api/containers/stop",
       "/api/tunnels",
     ].includes(pathname)
   )

@@ -182,6 +182,19 @@ const MODULES: ModuleCard[] = [
     },
   },
   {
+    href: "/containers",
+    glyph: "CT",
+    title: "Containers",
+    description: "Docker containers on this machine, with a guarded stop.",
+    endpoint: "/api/containers",
+    metric: (s) => {
+      const data = s.data as { unavailable?: string | null; containers?: Array<{ state: string }> } | null;
+      if (data?.unavailable) return { value: "—", label: "daemon off" };
+      const n = (data?.containers || []).filter((c) => c.state === "running").length;
+      return { value: String(n), label: "running" };
+    },
+  },
+  {
     href: "/logbook",
     glyph: "LB",
     title: "Logbook",
