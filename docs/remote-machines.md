@@ -34,7 +34,7 @@ The output, `dist/companion.cjs`, is a standalone bundle. No remote npm installa
 First verify SSH in Terminal, preserving host-key verification:
 
 ```sh
-ssh namanrusia@m1max-homelab.tailaaa918.ts.net
+ssh you@homelab.example.ts.net
 ```
 
 If a host key is unknown or changed, verify its fingerprint through a trusted channel before accepting/replacing it. Dockmaster uses batch SSH and cannot present password/passphrase/host-key prompts.
@@ -42,9 +42,9 @@ If a host key is unknown or changed, verify its fingerprint through a trusted ch
 Install the reviewed local bundle:
 
 ```sh
-ssh -o BatchMode=yes -o StrictHostKeyChecking=yes namanrusia@m1max-homelab.tailaaa918.ts.net 'mkdir -p /Users/namanrusia/Services/dockmaster'
-scp -o BatchMode=yes -o StrictHostKeyChecking=yes dist/companion.cjs namanrusia@m1max-homelab.tailaaa918.ts.net:/Users/namanrusia/Services/dockmaster/companion.cjs.next
-ssh -o BatchMode=yes -o StrictHostKeyChecking=yes namanrusia@m1max-homelab.tailaaa918.ts.net 'mv /Users/namanrusia/Services/dockmaster/companion.cjs.next /Users/namanrusia/Services/dockmaster/companion.cjs'
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes you@homelab.example.ts.net 'mkdir -p /Users/you/Services/dockmaster'
+scp -o BatchMode=yes -o StrictHostKeyChecking=yes dist/companion.cjs you@homelab.example.ts.net:/Users/you/Services/dockmaster/companion.cjs.next
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes you@homelab.example.ts.net 'mv /Users/you/Services/dockmaster/companion.cjs.next /Users/you/Services/dockmaster/companion.cjs'
 ```
 
 The companion starts automatically when a supported view or Test connection needs it. It exits on SSH/stdin closure or after 45 idle seconds. `npm run agent:install` still installs the **full coordinating dashboard** as a Mac LaunchAgent; it does not install a companion.
@@ -56,10 +56,10 @@ Use these verified values:
 | Field | Homelab value |
 | --- | --- |
 | Display name | `Homelab` |
-| SSH destination | `namanrusia@m1max-homelab.tailaaa918.ts.net` |
-| Absolute remote Node path | `/Users/namanrusia/.local/share/mise/installs/node/24.20.0/bin/node` |
-| Absolute remote companion path | `/Users/namanrusia/Services/dockmaster/companion.cjs` |
-| Development root | `/Users/namanrusia/developer` |
+| SSH destination | `you@homelab.example.ts.net` |
+| Absolute remote Node path | `/Users/you/.local/share/mise/installs/node/24.20.0/bin/node` |
+| Absolute remote companion path | `/Users/you/Services/dockmaster/companion.cjs` |
+| Development root | `/Users/you/Developer` |
 
 Save, Test connection, then select Homelab in the sidebar. Saving does not install or execute anything. Test connection explicitly executes the configured companion and reports hostname, OS, user, version, root, and capabilities. An updated companion requires Test connection or a coordinating backend restart to replace an existing session.
 
@@ -106,10 +106,10 @@ sudo install -o root -g wheel -m 755 /path/to/reviewed/dockmaster-hosts-helper /
 sudo visudo -f /etc/sudoers.d/dockmaster-hosts
 ```
 
-For the homelab’s `namanrusia` user, the narrowly scoped rule is:
+For the SSH user on the remote Mac (here `you`), the narrowly scoped rule is:
 
 ```sudoers
-namanrusia ALL=(root) NOPASSWD: /usr/local/libexec/dockmaster-hosts-helper ""
+you ALL=(root) NOPASSWD: /usr/local/libexec/dockmaster-hosts-helper ""
 ```
 
 The empty quoted argument list restricts invocation to **no arguments**. The helper and its parent directories must remain root-owned and not writable by the SSH user. Run `sudo visudo -c` to validate configuration. Refresh Hosts; Apply becomes available when the helper is authorized. This grants that user the ability to replace the Hosts file through the validated helper, not a general-purpose root shell. Updating the helper requires another explicit administrator installation.
@@ -120,7 +120,7 @@ To remove the privilege integration, remove its sudoers file using an administra
 
 Unknown host key: verify identity in Terminal. Authentication failure: check batch SSH as the dashboard’s user, including Keychain/IdentityAgent under launchd. Missing Node/companion: verify absolute paths. Version/malformed protocol: install the matching bundle and ensure shell startup does not print banners on stdout. Stale data: check SSH, Tailscale and whether the machine is awake. The homelab’s closed-lid sleep and FileVault recovery limitations remain unresolved; this work changes no power settings.
 
-Remove a machine in Settings to close its companion and tunnels and discard local configuration/snapshots. The remote bundle/data remain until explicitly removed. Delete `/Users/namanrusia/Services/dockmaster/companion.cjs` to uninstall the ordinary companion; retain `data/` if you want to keep its checks/profiles. No companion LaunchAgent needs uninstalling.
+Remove a machine in Settings to close its companion and tunnels and discard local configuration/snapshots. The remote bundle/data remain until explicitly removed. Delete `/Users/you/Services/dockmaster/companion.cjs` to uninstall the ordinary companion; retain `data/` if you want to keep its checks/profiles. No companion LaunchAgent needs uninstalling.
 
 ## Isolated local review and verification
 
@@ -137,24 +137,3 @@ DOCKMASTER_PORT=36253 DOCKMASTER_DATA_DIR=/private/tmp/dockmaster-remote-validat
 
 Open `http://127.0.0.1:36253/settings`. The installed agent keeps serving `.next` from
 the main checkout. Remove the worktree when done.
-
-Verified 2026-09-09 from `namanmacpro`, user `namanrusia`, checkout `/Users/namanrusia/developer/dockmaster`, branch `feat/remote-machines`; PR #5. The original milestone was committed/pushed before expanding the feature set.
-
-- Final checks: 142 Vitest tests, three isolated Python helper tests, TypeScript checking, companion bundle and production build passed.
-- Baseline: 101 tests, typecheck and production build passed. The initial remote slice subsequently passed 124 tests and actual same-port/disconnect/reconnect checks.
-- Expanded live checks: all eight remote read modules returned ready. System CPU/RAM and process samples were collected on the homelab. A fixture secret was fully redacted before transport.
-- A fixture HTTP server on port 39188 was opened through the forward while the same local port was occupied. Port fallback, HTTP content, mapping reuse, and explicit cleanup passed.
-- Health create/run/delete used target-local HTTP. Hosts read/save/delete used isolated data; `/etc/hosts` remained untouched. A disposable Git worktree was removed, its branch deleted, and pruning exercised. A fixture process was terminated through Processes. A stale process identity was refused; a separate fixture listener was stopped through the guarded Ports action. Existing services were not terminated.
-- Fixtures used `/Users/namanrusia/Services/dockmaster/validation`, separate from normal companion data. Temporary machine entries, mappings, test listeners and the fixture directory were removed afterward.
-- Unit/DOM tests cover protocol validation, connection loss/backoff, lease/session isolation, no replay, identity checks, symlink escapes, forwarding collisions/reuse, hidden polling, machine switching, shared Notepad and guarded UI requests. Run `npm test` with permission to bind loopback sockets. Run `python3 scripts/test-hosts-helper.py` for isolated helper validation; it never touches the real Hosts file.
-- Browser automation had no connected browser, so visual walkthrough remains unverified. Real privileged Hosts application, actual LaunchAgent-session behavior, and an outside-home network test remain manual validation items. Linux, continuous historical monitoring and persistent tunnel mappings remain future work.
-
-Memory usage excludes file-backed and purgeable cache using macOS `vm_stat` counters. Cached memory is shown separately; unused RAM is physical free memory, not the `memory_pressure` free percentage. Values can differ slightly from Activity Monitor due to sampling and accounting. Rebuild and install companion 2.0.1 for this correction.
-
-Verified 2026-09-09 from `namanmacpro` through the guarded local API: homelab companion 2.0.1 reported 34.31 GiB used, 28.18 GiB cached, and 2.36% physical free memory. Installed at `/Users/namanrusia/Services/dockmaster/companion.cjs`; the previous bundle is saved beside it as `companion.cjs.before-memory-fix`. Only the Dockmaster companion connection was refreshed. Restoring the backup also requires the matching backend version. Activity Monitor comparison used the supplied screenshot, not simultaneous samples.
-
-Companion 2.0.2 collects process names and start times together and rejects PID reuse between CPU samples. Tunnel creation stays bound to the validated SSH configuration and rechecks authorization after binding the local port. Upgrade the companion for the process identity fix.
-
-Verified 2026-09-09: installed companion 2.0.2 on the homelab and refreshed only its Dockmaster connection. The guarded dashboard API returned 36 homelab and 39 local process rows with names and start identities. No processes were signaled. The previous homelab bundle is `companion.cjs.before-identity-fix` (rollback requires its matching backend). Configuration-change tunnel races are covered by isolated loopback tests.
-
-Verified 2026-09-11: installed companion 2.1.0 (Disk) on the homelab at `/Users/namanrusia/Services/dockmaster/companion.cjs` over SSH and ran its hello handshake with the configured Node binary; it reported capabilities including `disk`. The previous bundle is saved as `companion.cjs.before-disk` (it was the parallel agents-branch 2.1.0 build; restoring it requires that branch's backend). Nothing was cleaned or scanned on the homelab during installation.

@@ -144,18 +144,18 @@ export default function SettingsPage() {
             [
               "destination",
               "SSH destination or alias",
-              "namanrusia@m1max-homelab.tailaaa918.ts.net",
+              "you@homelab.example.ts.net",
             ],
             ["nodePath", "Absolute remote Node path", "/absolute/path/to/node"],
             [
               "companionPath",
               "Absolute remote companion path",
-              "/Users/namanrusia/Services/dockmaster/companion.cjs",
+              "/Users/you/Services/dockmaster/companion.cjs",
             ],
             [
               "scanRoot",
               "Remote development root",
-              "/Users/namanrusia/developer",
+              "/Users/you/Developer",
             ],
           ] as const
         ).map(([key, label, placeholder]) => (

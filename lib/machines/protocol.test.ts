@@ -5,7 +5,7 @@ import { sshArgs } from "./ssh";
 export const machine = {
   id: "11111111-1111-1111-1111-111111111111",
   name: "Homelab",
-  destination: "namanrusia@m1max-homelab.tailaaa918.ts.net",
+  destination: "you@homelab.example.ts.net",
   nodePath: "/node",
   companionPath: "/companion.cjs",
   scanRoot: "/dev",
