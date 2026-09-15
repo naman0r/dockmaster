@@ -1,6 +1,6 @@
 # Port Authority: build plan
 
-`cd /Users/namanrusia/developer/port_authority && ./port_authority.py --open --verbose`
+`cd /Users/you/Developer/port_authority && ./port_authority.py --open --verbose`
 
 A local dashboard showing which dev servers are listening on this Mac, with a stop button.
 It should also look polished and have a cool cyberpunk / hacker aesthetic. We can iterate on design once the functionality is solid.
