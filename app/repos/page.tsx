@@ -16,7 +16,7 @@ import {
   useToast,
 } from "@/components/ui";
 
-import type { RepoRow } from "@/lib/repos/scan";
+import { nodeMajor, type RepoRow } from "@/lib/repos/scan";
 import { CHANGE_LABELS, type ChangeCounts } from "@/lib/repos/status";
 import {
   REPO_SORTS,
@@ -28,7 +28,7 @@ import {
 type ReposSnapshot = {
   enabled: boolean;
   cachedAt: string | null;
-  data: { root: string; depth: number; repos: RepoRow[] } | null;
+  data: { root: string; depth: number; nodeRunning: string; repos: RepoRow[] } | null;
   scanMs?: number;
 };
 
@@ -100,6 +100,8 @@ export default function ReposPage() {
     },
     [refresh, toast],
   );
+
+  const runningMajor = nodeMajor(snap?.data?.nodeRunning || "");
 
   const repos = useMemo(() => {
     const list = snap?.data?.repos || [];
@@ -286,6 +288,14 @@ export default function ReposPage() {
                     ) : null}
                     {!r.hasUpstream ? (
                       <Badge variant="quiet">No tracking branch</Badge>
+                    ) : null}
+                    {r.nodeWanted &&
+                    runningMajor !== null &&
+                    nodeMajor(r.nodeWanted) !== null &&
+                    nodeMajor(r.nodeWanted) !== runningMajor ? (
+                      <Badge variant="scope">
+                        wants node {r.nodeWanted} · dashboard runs {runningMajor}
+                      </Badge>
                     ) : null}
                     {r.staleBranches > 0 ? (
                       <Badge variant="scope">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseStatusHeader, countDirty, parseBranchDates } from "./scan";
+import { parseStatusHeader, countDirty, parseBranchDates, parseToolVersions, nodeMajor } from "./scan";
 
 describe("parseStatusHeader", () => {
   it("parses branch with upstream and ahead/behind", () => {
@@ -54,5 +54,18 @@ describe("parseBranchDates", () => {
 
   it("skips malformed lines", () => {
     expect(parseBranchDates("main\nbroken\tabc\nold\t1\n")).toEqual([{ name: "old", date: 1 }]);
+  });
+});
+
+describe("node pins", () => {
+  it("reads the node line from .tool-versions", () => {
+    expect(parseToolVersions("python 3.12\nnodejs 20.12.0\n")).toBe("20.12.0");
+    expect(parseToolVersions("node 22\n")).toBe("22");
+    expect(parseToolVersions("ruby 3.3\n")).toBe("");
+  });
+  it("compares by leading major only", () => {
+    expect(nodeMajor("v20.12.0")).toBe(20);
+    expect(nodeMajor(">=18 <21")).toBe(18);
+    expect(nodeMajor("lts/iron")).toBeNull();
   });
 });

@@ -1,3 +1,4 @@
+import fs from "fs/promises";
 import path from "path";
 import { parseChanges, type ChangeCounts } from "./status";
 import { readGithubUrl } from "@/lib/git-remote";
@@ -19,8 +20,42 @@ export type RepoRow = {
   lastCommitIso: string;
   lastCommitSubject: string;
   staleBranches: number;
+  // Node version the repo pins (.nvmrc, .node-version, .tool-versions, or
+  // package.json engines), "" when it pins nothing.
+  nodeWanted: string;
   error: string;
 };
+
+export function parseToolVersions(content: string): string {
+  return content.match(/^\s*node(?:js)?\s+(\S+)/m)?.[1] || "";
+}
+
+// Leading major number of a pin like "20", "v20.12.0", ">=18 <21", "20.x".
+// Aliases ("lts/iron") have no digits and are not compared.
+export function nodeMajor(version: string): number | null {
+  const m = /(\d+)/.exec(version);
+  return m ? Number(m[1]) : null;
+}
+
+async function readNodePin(repoPath: string): Promise<string> {
+  const read = (name: string) =>
+    fs.readFile(path.join(repoPath, name), "utf8").catch(() => "");
+  const [nvmrc, nodeVersion, toolVersions, pkg] = await Promise.all([
+    read(".nvmrc"),
+    read(".node-version"),
+    read(".tool-versions"),
+    read("package.json"),
+  ]);
+  const fromPkg = (() => {
+    try {
+      const engines = (JSON.parse(pkg) as { engines?: { node?: unknown } }).engines;
+      return typeof engines?.node === "string" ? engines.node : "";
+    } catch {
+      return "";
+    }
+  })();
+  return (nvmrc.trim() || nodeVersion.trim() || parseToolVersions(toolVersions) || fromPkg).trim();
+}
 
 // "## main...origin/main [ahead 1, behind 2]" → branch, upstream, ahead/behind.
 export function parseStatusHeader(
@@ -73,6 +108,7 @@ export async function scanRepo(repoPath: string): Promise<RepoRow> {
     lastCommitIso: "",
     lastCommitSubject: "",
     staleBranches: 0,
+    nodeWanted: "",
     error: "",
   };
   try {
@@ -94,7 +130,7 @@ export async function scanRepo(repoPath: string): Promise<RepoRow> {
     row.changes = parseChanges(status);
     row.dirty = Object.values(row.changes).reduce((sum, n) => sum + n, 0);
 
-    const [refs, log, githubUrl] = await Promise.all([
+    const [refs, log, githubUrl, nodeWanted] = await Promise.all([
       exec(
         [
           "git",
@@ -110,8 +146,10 @@ export async function scanRepo(repoPath: string): Promise<RepoRow> {
         timeoutMs: 5000,
       }),
       readGithubUrl(repoPath),
+      readNodePin(repoPath),
     ]);
     row.githubUrl = githubUrl;
+    row.nodeWanted = nodeWanted;
     const cutoff = Date.now() / 1000 - STALE_DAYS * 86400;
     row.staleBranches = parseBranchDates(refs).filter(
       (b) => b.date < cutoff && b.name !== row.branch,
@@ -128,6 +166,8 @@ export async function scanRepo(repoPath: string): Promise<RepoRow> {
 export type ReposData = {
   root: string;
   depth: number;
+  // ponytail: the node running Dockmaster, not the shell's; launchd has no nvm.
+  nodeRunning: string;
   repos: RepoRow[];
 };
 
@@ -136,5 +176,5 @@ export async function scanRepos(): Promise<ReposData> {
   const depth = walkDepth();
   const repoPaths = await findRepos(root, depth);
   const repos = await mapLimit(repoPaths, 6, scanRepo);
-  return { root, depth, repos };
+  return { root, depth, nodeRunning: process.version, repos };
 }

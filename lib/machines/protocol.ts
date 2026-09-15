@@ -148,6 +148,7 @@ const schemas = {
   repos: z.object({
     root: str,
     depth: integer,
+    nodeRunning: str,
     repos: z
       .array(
         z.object({
@@ -163,6 +164,7 @@ const schemas = {
           lastCommitIso: str,
           lastCommitSubject: str,
           staleBranches: integer,
+          nodeWanted: str,
           error: str,
         }),
       )
