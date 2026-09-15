@@ -16,7 +16,8 @@ import {
   useToast,
 } from "@/components/ui";
 
-import { nodeMajor, type RepoRow } from "@/lib/repos/scan";
+import type { RepoRow } from "@/lib/repos/scan";
+import { nodeMajor } from "@/lib/repos/node";
 import { CHANGE_LABELS, type ChangeCounts } from "@/lib/repos/status";
 import {
   REPO_SORTS,

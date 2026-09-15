@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseStatusHeader, countDirty, parseBranchDates, parseToolVersions, nodeMajor } from "./scan";
+import { parseStatusHeader, countDirty, parseBranchDates } from "./scan";
+import { parseToolVersions, nodeMajor } from "./node";
 
 describe("parseStatusHeader", () => {
   it("parses branch with upstream and ahead/behind", () => {
