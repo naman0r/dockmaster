@@ -2,22 +2,9 @@ import fs from "fs/promises";
 import os from "os";
 import path from "path";
 
-export const MODULES = [
-  "ports",
-  "repos",
-  "worktrees",
-  "health",
-  "hosts",
-  "processes",
-  "secrets",
-  "disk",
-  "containers",
-  "agents",
-  "agentwatch",
-  "logbook",
-] as const;
+import { MODULES, type ModuleId } from "@/lib/config.client";
 
-export type ModuleId = (typeof MODULES)[number];
+export { MODULES, type ModuleId };
 
 export type Settings = {
   modules: Record<ModuleId, boolean>;

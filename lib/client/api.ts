@@ -43,6 +43,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   }
 
   const payload = (await res.json().catch(() => ({}))) as { error?: string };
+  // The sidebar and Harbor hide disabled modules and have no other way to
+  // learn that a module page flipped its toggle.
+  if (res.ok && init?.method === "POST" && url.startsWith("/api/settings"))
+    window.dispatchEvent(new Event("dockmaster:settings"));
   if (!res.ok) {
     throw new ApiError(
       res.status,
