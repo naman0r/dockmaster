@@ -1,5 +1,8 @@
 # Dockmaster
 
+<img width="600" alt="brag" src="https://github.com/user-attachments/assets/e4a443e8-a0da-4db4-9c97-c9c2aedcb491" />
+
+
 **Know what’s running on your Mac and your homelab.**
 
 macOS only · Node 20.12+ · MIT · [trydockmaster.vercel.app](https://trydockmaster.vercel.app)
