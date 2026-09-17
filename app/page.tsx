@@ -201,6 +201,17 @@ const MODULES: ModuleCard[] = [
     },
   },
   {
+    href: "/agents",
+    glyph: "LA",
+    title: "LaunchAgents",
+    description: "User launchd agents, with load and unload.",
+    endpoint: "/api/agents",
+    metric: (s) => {
+      const list = (s.data as { agents?: Array<{ pid: number | null }> } | null)?.agents || [];
+      return { value: String(list.filter((a) => a.pid !== null).length), label: `running / ${list.length}` };
+    },
+  },
+  {
     href: "/logbook",
     glyph: "LB",
     title: "Logbook",
