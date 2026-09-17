@@ -2,7 +2,10 @@
 import { useState } from "react";
 import { useMachine } from "@/components/machines";
 import { apiPost, apiDelete } from "@/lib/client/api";
-import { Button, ErrorNote, PageHeader } from "@/components/ui";
+import { Button, ErrorNote, PageHeader, Toggle } from "@/components/ui";
+import { useModuleSettings } from "@/components/hooks";
+import { MODULE_LINKS } from "@/lib/navigation";
+import { MODULES, type ModuleId } from "@/lib/config.client";
 import type { RemoteMachine } from "@/lib/machines/config";
 import type { Info } from "@/lib/machines/protocol";
 const empty = {
@@ -19,6 +22,15 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState<Record<string, Info>>({});
   const [testing, setTesting] = useState("");
+  const modules = useModuleSettings();
+  async function setModule(id: ModuleId, on: boolean) {
+    setError("");
+    try {
+      await apiPost("/api/settings", { modules: { [id]: on } });
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
   function clearInfo(id: string) {
     setInfo((p) => {
       const next = { ...p };
@@ -58,10 +70,30 @@ export default function SettingsPage() {
     <>
       <PageHeader
         eyebrow="Settings"
-        title="Machines"
-        description="Your dashboard stays on this Mac. Remote collectors run on demand over your existing SSH connection."
+        title="Settings"
+        description="Choose which modules are on. Your dashboard stays on this Mac; remote collectors run on demand over your existing SSH connection."
       />
       <ErrorNote message={error} />
+      <section className="mb-8">
+        <h2 className="mb-1 text-lg">Modules</h2>
+        <p className="mb-3 text-xs text-muted">
+          A module that is off does not scan and is hidden from the sidebar and Harbor.
+        </p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 max-[560px]:grid-cols-1">
+          {MODULES.map((id) => {
+            const link = MODULE_LINKS.find((l) => l.href === `/${id}`);
+            return (
+              <Toggle
+                key={id}
+                checked={modules?.[id] ?? true}
+                onChange={(on) => void setModule(id, on)}
+                label={link?.label ?? id}
+              />
+            );
+          })}
+        </div>
+      </section>
+      <h2 className="mb-3 text-lg">Machines</h2>
       <div className="grid gap-3">
         {machines.map((m) => (
           <article

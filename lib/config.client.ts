@@ -5,3 +5,20 @@ export function logbookIntervalMs(): number {
   const parsed = Number(process.env.NEXT_PUBLIC_DOCKMASTER_LOGBOOK_INTERVAL_MS);
   return Number.isInteger(parsed) && parsed >= 3000 ? parsed : 10000;
 }
+
+export const MODULES = [
+  "ports",
+  "repos",
+  "worktrees",
+  "health",
+  "hosts",
+  "processes",
+  "secrets",
+  "disk",
+  "containers",
+  "agents",
+  "agentwatch",
+  "logbook",
+] as const;
+
+export type ModuleId = (typeof MODULES)[number];

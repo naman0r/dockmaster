@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { apiGet } from "@/lib/client/api";
+import type { ModuleId } from "@/lib/config.client";
 
 // Poll on an interval, skip ticks while the tab is hidden, and refresh once
 // when the tab becomes visible again. This is what keeps every module
@@ -94,4 +96,18 @@ export function usePaletteTarget(data: unknown, reveal?: () => void): void {
       pending.current = "";
     }
   }, [data]);
+}
+
+// null until the first read lands, so callers can show everything meanwhile.
+export function useModuleSettings(): Record<ModuleId, boolean> | null {
+  const [modules, setModules] = useState<Record<ModuleId, boolean> | null>(null);
+  useEffect(() => {
+    const load = () => {
+      void apiGet<{ modules: Record<ModuleId, boolean> }>("/api/settings").then((s) => setModules(s.modules)).catch(() => {});
+    };
+    load();
+    window.addEventListener("dockmaster:settings", load);
+    return () => window.removeEventListener("dockmaster:settings", load);
+  }, []);
+  return modules;
 }

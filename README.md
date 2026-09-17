@@ -50,7 +50,7 @@ Prefer doing it yourself? See [Run it](#run-it) below.
 | **Logbook**   | "Which project had you today" — samples the frontmost app via osascript. Fully demand-driven: it records only while the page is open and visible. Window titles are never stored.                                                                                         |
 | **Notepad**   | Local scratch pad: timestamped dev notes (tools you found, snippets, ideas) stored in `~/.dockmaster/notes.json`.                                                                                                                                                         |
 
-Every scanning module can be switched off from its own page (persisted in `~/.dockmaster/settings.json`).
+Every scanning module can be switched off from its own page or from Settings (persisted in `~/.dockmaster/settings.json`). A module that is off disappears from the sidebar and Harbor until you switch it back on in Settings.
 
 ## Repository and worktree shortcuts
 

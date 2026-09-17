@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { MODULE_LINKS } from "@/lib/navigation";
+import { useModuleSettings } from "@/components/hooks";
+import type { ModuleId } from "@/lib/config.client";
 import { CommandPalette } from "@/components/command-palette";
 
 const LINK =
@@ -16,6 +18,10 @@ const GLYPH =
 export function Nav() {
   const pathname = usePathname();
   const { machine } = useMachine();
+  const modules = useModuleSettings();
+  const links = MODULE_LINKS.filter(
+    (item) => modules?.[item.href.slice(1) as ModuleId] !== false,
+  );
   return (
     <aside className="sticky top-0 flex h-screen flex-col gap-[26px] border-r border-line bg-[#070b14]/60 px-[18px] pb-5 pt-[26px] backdrop-blur-md max-[900px]:static max-[900px]:h-auto max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-4 max-[900px]:border-b max-[900px]:border-r-0 max-[900px]:px-4 max-[900px]:py-4">
       <Link
@@ -42,7 +48,7 @@ export function Nav() {
         className="flex flex-col gap-[3px] max-[900px]:flex-row max-[900px]:flex-wrap"
         aria-label="Modules"
       >
-        {MODULE_LINKS.map((item) => (
+        {links.map((item) => (
           <Link
             key={item.href}
             href={item.href}

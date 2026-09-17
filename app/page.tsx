@@ -287,7 +287,7 @@ export default function OverviewPage() {
       <PageHeader
         eyebrow="Local berth monitor"
         title="The harbor at a glance"
-        description="Everything Dockmaster knows right now. Modules only scan while a page is open, and each can be switched off from its own page."
+        description="Everything Dockmaster knows right now. Modules only scan while a page is open. Switch one off from its page or Settings and it leaves the sidebar too."
       />
       <ErrorNote message={error} />
       <div className="mb-3.5 flex flex-wrap overflow-hidden rounded-[14px] border border-line">
@@ -319,7 +319,7 @@ export default function OverviewPage() {
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3.5 max-[1280px]:grid-cols-2 max-[900px]:grid-cols-1">
-        {MODULES.map((m) => {
+        {MODULES.filter((m) => snaps[m.href]?.enabled !== false).map((m) => {
           const b = berth(m, snaps[m.href]);
           return (
             <a
