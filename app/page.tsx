@@ -212,6 +212,17 @@ const MODULES: ModuleCard[] = [
     },
   },
   {
+    href: "/agentwatch",
+    glyph: "AW",
+    title: "Agent Watch",
+    description: "Coding agents running here and today's token use.",
+    endpoint: "/api/agentwatch",
+    metric: (s) => {
+      const n = countOf((s.data as { running?: unknown[] } | null)?.running);
+      return { value: String(n), label: n === 1 ? "agent running" : "agents running" };
+    },
+  },
+  {
     href: "/logbook",
     glyph: "LB",
     title: "Logbook",

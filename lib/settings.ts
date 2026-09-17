@@ -13,6 +13,7 @@ export const MODULES = [
   "disk",
   "containers",
   "agents",
+  "agentwatch",
   "logbook",
 ] as const;
 
@@ -34,6 +35,7 @@ const DEFAULTS: Settings = {
     disk: true,
     containers: true,
     agents: true,
+    agentwatch: true,
     logbook: false,
   },
 };
