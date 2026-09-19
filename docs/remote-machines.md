@@ -47,6 +47,8 @@ scp -o BatchMode=yes -o StrictHostKeyChecking=yes dist/companion.cjs you@homelab
 ssh -o BatchMode=yes -o StrictHostKeyChecking=yes you@homelab.example.ts.net 'mv /Users/you/Services/dockmaster/companion.cjs.next /Users/you/Services/dockmaster/companion.cjs'
 ```
 
+After the first install, **Update companion** in Settings → Machines does the same three steps for you: it pipes the local `dist/companion.cjs` over batch SSH to the configured companion path with an atomic rename, then reruns Test connection. Run `npm run companion:build` first; the button refuses a bundle whose version does not match this checkout.
+
 The companion starts automatically when a supported view or Test connection needs it. It exits on SSH/stdin closure or after 45 idle seconds. `npm run agent:install` still installs the **full coordinating dashboard** as a Mac LaunchAgent; it does not install a companion.
 
 ## Settings → Machines
@@ -63,7 +65,7 @@ Use these verified values:
 
 Save, Test connection, then select Homelab in the sidebar. Saving does not install or execute anything. Test connection explicitly executes the configured companion and reports hostname, OS, user, version, root, and capabilities. An updated companion requires Test connection or a coordinating backend restart to replace an existing session.
 
-Protocol and companion versions are now **2 / 2.2.0** (Containers). The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
+Protocol and companion versions are now **2 / 2.3.0** (Agent Watch). The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
 
 Machine UUIDs persist independently of names/hostnames in `machines.json` under `DOCKMASTER_DATA_DIR` (default `~/.dockmaster`), written atomically with mode 0600. Existing module settings remain in `settings.json`. Module toggles currently apply dashboard-wide and are changed on This Mac. Selection persists per browser tab; Notepad stays shared.
 

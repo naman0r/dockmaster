@@ -53,12 +53,12 @@ export default function SettingsPage() {
       setBusy(false);
     }
   }
-  async function test(id: string) {
+  async function test(id: string, route = "test") {
     setTesting(id);
     clearInfo(id);
     setError("");
     try {
-      const r = await apiPost<{ data: Info }>("/api/machines/test", { id });
+      const r = await apiPost<{ data: Info }>(`/api/machines/${route}`, { id });
       setInfo((p) => ({ ...p, [id]: r.data }));
     } catch (e) {
       setError((e as Error).message);
@@ -122,6 +122,12 @@ export default function SettingsPage() {
                   </Button>
                   <Button
                     disabled={!!testing || busy}
+                    onClick={() => void test(m.id, "install")}
+                  >
+                    Update companion
+                  </Button>
+                  <Button
+                    disabled={!!testing || busy}
                     onClick={async () => {
                       if (!confirm(`Remove ${m.name} from Dockmaster?`)) return;
                       try {
@@ -166,9 +172,9 @@ export default function SettingsPage() {
           {form.id ? "Edit remote machine" : "Add remote machine"}
         </h2>
         <p className="text-sm text-muted">
-          Install the companion explicitly first (see docs/remote-machines.md).
-          Saving does not connect or install anything. Test connection executes
-          the configured companion using SSH host-key verification.
+          Saving does not connect or install anything. Update companion copies
+          this checkout&apos;s built bundle to the companion path over SSH; Test
+          connection executes it using SSH host-key verification.
         </p>
         {(
           [

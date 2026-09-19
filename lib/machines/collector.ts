@@ -9,6 +9,7 @@ import { runAllChecks, resultsCache } from "@/lib/health";
 import { scanSecrets } from "@/lib/secrets";
 import { scanDisk, diskCache } from "@/lib/disk";
 import { scanContainers, containersCache } from "@/lib/containers";
+import { scanAgentWatch, agentWatchCache } from "@/lib/agentwatch";
 import { devRoot } from "@/lib/settings";
 import { TtlCache } from "@/lib/cache";
 import { hostsSnapshot } from "./remote-hosts";
@@ -31,6 +32,7 @@ export function invalidateCollectors() {
   secrets.invalidate();
   diskCache.invalidate();
   containersCache.invalidate();
+  agentWatchCache.invalidate();
 }
 export async function collect(op: Operation, force = false): Promise<Result> {
   if (op === "hello")
@@ -70,5 +72,7 @@ export async function collect(op: Operation, force = false): Promise<Result> {
   if (op === "disk") return diskCache.get(force, scanDisk) as Promise<Result>;
   if (op === "containers")
     return containersCache.get(force, scanContainers) as Promise<Result>;
+  if (op === "agentwatch")
+    return agentWatchCache.get(force, scanAgentWatch) as Promise<Result>;
   throw new Error("Unsupported operation.");
 }

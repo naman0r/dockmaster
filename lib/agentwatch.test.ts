@@ -70,10 +70,12 @@ describe("foldClaudeLines", () => {
       lastActive: "2026-09-17T03:19:18.914Z",
     });
   });
-  it("prefers the CLI's ai-title and returns null for an empty transcript", () => {
-    const f = foldClaudeLines([JSON.stringify({ type: "ai-title", aiTitle: "Cart fix" }), user("fix the cart"), assistant("m1")], "s")!;
+  it("prefers the CLI's ai-title and drops empty or one-shot transcripts", () => {
+    const f = foldClaudeLines([JSON.stringify({ type: "ai-title", aiTitle: "Cart fix" }), user("fix the cart"), assistant("m1", 1)], "s")!;
     expect(f.title).toBe("Cart fix");
     expect(foldClaudeLines([JSON.stringify({ type: "cost-state" }), user("hi")], "s")).toBeNull();
+    expect(foldClaudeLines([user("hi"), assistant("m1")], "s")).toBeNull();
+    expect(foldClaudeLines([user("hi"), assistant("m1"), user("and?"), assistant("m2")], "s")).not.toBeNull();
   });
 });
 

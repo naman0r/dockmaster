@@ -9,8 +9,9 @@ import type { HostEntry } from "@/lib/hosts";
 import type { scanSecrets } from "@/lib/secrets";
 import type { DiskData } from "@/lib/disk";
 import type { ContainersData } from "@/lib/containers";
+import type { AgentWatchData } from "@/lib/agentwatch";
 export const VERSION = 2;
-export const COMPANION_VERSION = "2.2.0";
+export const COMPANION_VERSION = "2.3.0";
 export const MAX_MESSAGE = 2 * 1024 * 1024;
 export const READ_OPERATIONS = [
   "ports",
@@ -23,6 +24,7 @@ export const READ_OPERATIONS = [
   "secrets",
   "disk",
   "containers",
+  "agentwatch",
 ] as const;
 export type ReadOperation = (typeof READ_OPERATIONS)[number];
 export type Operation = "hello" | ReadOperation | "action";
@@ -64,6 +66,7 @@ export type Payloads = {
   secrets: Awaited<ReturnType<typeof scanSecrets>>;
   disk: DiskData;
   containers: ContainersData;
+  agentwatch: AgentWatchData;
   action: { ok: boolean; stillAlive?: boolean; stillListening?: boolean; stillRunning?: boolean; freedKb?: number };
 };
 export type Result<K extends Operation = Operation> = {
@@ -309,6 +312,46 @@ const schemas = {
         }),
       )
       .max(10000),
+  }),
+  agentwatch: z.object({
+    running: z
+      .array(
+        z.object({
+          pid: integer.positive(),
+          kind: str,
+          argv: str,
+          cwd: str,
+          project: str,
+          startedAt: str,
+          sessionId: str.nullable(),
+        }),
+      )
+      .max(1000),
+    sessions: z
+      .array(
+        z.object({
+          agent: z.enum(["Claude Code", "Codex"]),
+          id: str,
+          title: str,
+          cwd: str,
+          project: str,
+          branch: str,
+          models: z.array(str).max(20),
+          prompts: integer,
+          toolCalls: integer,
+          inputTokens: integer,
+          outputTokens: integer,
+          cacheReadTokens: integer,
+          contextTokens: integer,
+          costUsd: num.nullable(),
+          linesAdded: integer,
+          linesRemoved: integer,
+          startedAt: str,
+          lastActive: str,
+          pid: integer.positive().nullable(),
+        }),
+      )
+      .max(1000),
   }),
   action: z.object({
     ok: z.boolean(),
