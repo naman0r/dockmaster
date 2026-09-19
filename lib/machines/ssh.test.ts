@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { spawn } from "node:child_process";
-import { SshConnection } from "./ssh";
+import { SshConnection, installArgs, installCompanion } from "./ssh";
 const machine = {
   id: "11111111-1111-1111-1111-111111111111",
   name: "Homelab",
@@ -31,7 +31,7 @@ const hello = {
   hostname: "homelab",
   os: "darwin",
   user: "naman",
-  version: "2.2.0",
+  version: "2.3.0",
   scanRoot: "/dev",
   capabilities: ["ports", "vitals"],
 };
@@ -159,4 +159,24 @@ it("does not accept remote-supplied machine provenance", async () => {
   const result = await connection(f).request("ports");
   expect(result).not.toHaveProperty("machineId");
   expect(result).not.toHaveProperty("state");
+});
+it("installs with one fixed remote command and streams the bundle over stdin", async () => {
+  const args = installArgs({ ...machine, companionPath: "/Users/o'k/Services/dm/companion.cjs" });
+  expect(args.at(-1)).toBe(
+    "mkdir -p '/Users/o'\\''k/Services/dm' && cat > '/Users/o'\\''k/Services/dm/companion.cjs.next' && mv -f '/Users/o'\\''k/Services/dm/companion.cjs.next' '/Users/o'\\''k/Services/dm/companion.cjs'",
+  );
+  const child = () =>
+    Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), kill: vi.fn() });
+  const ok = child();
+  const received: Buffer[] = [];
+  ok.stdin.on("data", (b) => received.push(b));
+  const done = installCompanion(machine, Buffer.from("bundle"), (() => ok) as unknown as typeof spawn);
+  await new Promise((r) => setTimeout(r, 0));
+  ok.emit("close", 0);
+  await expect(done).resolves.toBeUndefined();
+  expect(Buffer.concat(received).toString()).toBe("bundle");
+  const bad = child();
+  const failed = installCompanion(machine, Buffer.from("bundle"), (() => bad) as unknown as typeof spawn);
+  bad.emit("close", 255);
+  await expect(failed).rejects.toThrow("ssh exit 255");
 });

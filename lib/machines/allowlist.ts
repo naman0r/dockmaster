@@ -9,6 +9,7 @@ const READ_OPERATIONS = [
   "secrets",
   "disk",
   "containers",
+  "agentwatch",
 ];
 export function remoteRouteAllowed(method: string, pathname: string): boolean {
   if (

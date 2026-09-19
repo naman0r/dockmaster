@@ -32,6 +32,11 @@ function sanitize(result: Result): Result {
       ...result,
       data: { services: result.data.services.map((s) => ({ ...s, argv: "" })) },
     };
+  if ("running" in result.data)
+    return {
+      ...result,
+      data: { ...result.data, running: result.data.running.map((a) => ({ ...a, argv: "" })) },
+    };
   if ("findings" in result.data)
     return {
       ...result,

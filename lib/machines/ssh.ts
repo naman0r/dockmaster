@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import path from "node:path";
 import { HttpError } from "@/lib/http";
 import { randomUUID } from "node:crypto";
 import type { RemoteMachine } from "./config";
@@ -36,6 +37,44 @@ export function sshArgs(m: RemoteMachine): string[] {
     m.destination,
     `exec ${quote(m.nodePath)} ${quote(m.companionPath)} ${quote(m.scanRoot)}`,
   ];
+}
+// The old companion cannot replace itself, so installs bypass the protocol:
+// the bundle goes over stdin to one fixed remote command that renames it into
+// place atomically. Health checks and Hosts data beside the bundle are untouched.
+export function installArgs(m: RemoteMachine): string[] {
+  const args = sshArgs(m);
+  const target = quote(m.companionPath);
+  const next = quote(m.companionPath + ".next");
+  args[args.length - 1] =
+    `mkdir -p ${quote(path.posix.dirname(m.companionPath))} && cat > ${next} && mv -f ${next} ${target}`;
+  return args;
+}
+export function installCompanion(
+  m: RemoteMachine,
+  bundle: Buffer,
+  launch = spawn,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const c = launch("/usr/bin/ssh", installArgs(m), {
+      env: { ...process.env, DOCKMASTER_DEV_ROOT: undefined },
+      stdio: "pipe",
+    });
+    const timer = setTimeout(() => {
+      c.kill();
+      reject(new Error("Companion install timed out. The machine may be asleep or unreachable."));
+    }, 30000);
+    c.stdout.resume();
+    c.stderr.resume();
+    c.stdin.on("error", () => {});
+    c.on("error", () => reject(new Error("Unable to start /usr/bin/ssh.")));
+    c.on("close", (code) => {
+      clearTimeout(timer);
+      // Never relay SSH output; the exit code is the only detail exposed.
+      if (code === 0) resolve();
+      else reject(new Error(`Companion install failed (ssh exit ${code}). Check SSH access and the companion path.`));
+    });
+    c.stdin.end(bundle);
+  });
 }
 type Pending = {
   op: Operation;

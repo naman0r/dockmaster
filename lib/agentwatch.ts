@@ -97,6 +97,10 @@ function bump(f: Folded, ts?: string) {
   if (ts > f.lastActive) f.lastActive = ts;
 }
 
+// A one-prompt exchange with no tool use ("hi", "!pwd") is noise, not work.
+// ponytail: fixed rule; make it a setting if someone wants their one-liners back.
+const substantial = (f: Folded) => f.outputTokens > 0 && (f.toolCalls > 0 || f.prompts > 1);
+
 // Claude Code logs one line per content block, each repeating the message's
 // usage, so a message id must count once. cost-state and ai-title rows are
 // written by the CLI alongside the transcript.
@@ -144,7 +148,7 @@ export function foldClaudeLines(lines: string[], id: string): Folded | null {
     f.contextTokens =
       (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
   }
-  if (!seen.size) return null;
+  if (!substantial(f)) return null;
   f.title ||= firstPrompt.slice(0, 120);
   f.models = [...models].sort();
   return f;
@@ -154,7 +158,6 @@ export function foldClaudeLines(lines: string[], id: string): Folded | null {
 export function foldCodexLines(lines: string[], id: string): Folded | null {
   const f = blank("Codex", id);
   const models = new Set<string>();
-  let sawUsage = false;
   for (const line of lines) {
     let row: Record<string, any>;
     try {
@@ -181,7 +184,6 @@ export function foldCodexLines(lines: string[], id: string): Folded | null {
       f.toolCalls += 1;
     } else if (row.type === "event_msg" && p.type === "token_count" && p.info?.total_token_usage) {
       const u = p.info.total_token_usage;
-      sawUsage = true;
       f.inputTokens = u.input_tokens || 0;
       f.outputTokens = u.output_tokens || 0;
       f.cacheReadTokens = u.cached_input_tokens || 0;
@@ -189,7 +191,7 @@ export function foldCodexLines(lines: string[], id: string): Folded | null {
       if (last) f.contextTokens = (last.input_tokens || 0) + (last.cached_input_tokens || 0);
     }
   }
-  if (!sawUsage && !f.prompts) return null;
+  if (!substantial(f)) return null;
   f.models = [...models].sort();
   return f;
 }
