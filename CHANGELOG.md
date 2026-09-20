@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Agent Watch lists the servers each session's folder is running and worktree state, and has a Left behind banner that opens a cleanup page with the reason for each flag and a Clean up action for servers and merged worktrees that finished agents left.
 - Containers module: Docker containers with compose project, ports, and a guarded stop. Remote via companion 2.2.0.
 - Ports rows link to their repository on the Repos page.
 - Secrets reports keys declared in `.env.example` that `.env` does not set.

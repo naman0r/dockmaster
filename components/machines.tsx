@@ -142,7 +142,7 @@ export function MachineBoundary({ children }: { children: ReactNode }) {
         <div className="card-surface rounded-xl border border-line p-6">
           <h1 className="text-xl">This module is local-only</h1>
           <p className="mt-3 text-muted">
-            Select This Mac to use Logbook. It remains local-only and unchanged
+            Select This Mac to use this page. It remains local-only and unchanged
             by remote support.
           </p>
         </div>

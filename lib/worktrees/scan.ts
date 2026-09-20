@@ -5,6 +5,7 @@ import { readGithubUrl } from "@/lib/git-remote";
 import { exec } from "@/lib/exec";
 import { HttpError } from "@/lib/http";
 import { mapLimit } from "@/lib/async";
+import { TtlCache } from "@/lib/cache";
 import { findRepos } from "@/lib/walk";
 import { devRoot, walkDepth } from "@/lib/settings";
 
@@ -124,7 +125,7 @@ async function staleBranches(
   return candidates.map((b) => ({ name: b.name, lastCommitIso: b.iso, merged: merged.has(b.name) }));
 }
 
-async function defaultBranchOf(repoPath: string): Promise<string> {
+export async function defaultBranchOf(repoPath: string): Promise<string> {
   const head = await exec(
     ["git", "-C", repoPath, "symbolic-ref", "--short", "HEAD"],
     {
@@ -152,6 +153,8 @@ async function isAncestor(
   );
   return Number(count.trim()) === 0;
 }
+
+export const worktreesCache = new TtlCache<RepoWorktrees[]>(60_000);
 
 export async function scanWorktrees(): Promise<RepoWorktrees[]> {
   const root = devRoot();
