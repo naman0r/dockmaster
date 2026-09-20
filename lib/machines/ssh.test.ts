@@ -31,7 +31,7 @@ const hello = {
   hostname: "homelab",
   os: "darwin",
   user: "naman",
-  version: "2.3.0",
+  version: "2.4.0",
   scanRoot: "/dev",
   capabilities: ["ports", "vitals"],
 };

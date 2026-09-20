@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentKind, foldClaudeLines, foldCodexLines, sessionIdFromArgv } from "./agentwatch";
+import { agentKind, foldClaudeLines, foldCodexLines, foldOpenCodeRows, sessionIdFromArgv } from "./agentwatch";
 
 describe("agentKind", () => {
   it("matches the binary basename or the script a runtime launched", () => {
@@ -105,5 +105,30 @@ describe("foldCodexLines", () => {
       models: ["gpt-5-codex"],
       costUsd: null,
     });
+  });
+});
+
+describe("foldOpenCodeRows", () => {
+  it("rolls subagent spend into the parent and drops one-shot sessions", () => {
+    const row = (id: string, extra = {}) => ({
+      id, parent_id: null, title: "sweep the repos", directory: "/Users/x/Developer/subc",
+      model: JSON.stringify({ id: "glm-5.3-flash" }), cost: 0.25, tokens_input: 100, tokens_output: 40,
+      tokens_cache_read: 1000, summary_additions: 3, summary_deletions: 1, time_created: 1789860501639,
+      time_updated: 1789862338977, prompts: 2, tools: 5,
+      last_tokens: JSON.stringify({ input: 10, cache: { read: 200, write: 5 } }), ...extra,
+    });
+    const out = foldOpenCodeRows([
+      row("top"),
+      row("kid", { parent_id: "top", cost: 0.05, tools: 7, time_updated: 1789862400000 }),
+      row("grandkid", { parent_id: "kid", cost: 0.01, tools: 1 }),
+      row("hi", { prompts: 1, tools: 0, last_tokens: null, model: "not json" }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      agent: "OpenCode", id: "top", cwd: "/Users/x/Developer/subc", models: ["glm-5.3-flash"], prompts: 2,
+      toolCalls: 13, inputTokens: 300, outputTokens: 120, contextTokens: 215, linesAdded: 3, linesRemoved: 1,
+      lastActive: new Date(1789862400000).toISOString(),
+    });
+    expect(out[0].costUsd).toBeCloseTo(0.31);
   });
 });

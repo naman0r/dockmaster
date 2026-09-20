@@ -128,7 +128,7 @@ export default function AgentWatchPage() {
       <PageHeader
         eyebrow="Crew on deck"
         title="Agent Watch"
-        description="Coding agents running on this Mac and the last seven days of sessions, read from Claude Code and Codex logs in your home directory. Cost comes from Claude Code's own ledger; Codex reports tokens only. Nothing leaves the machine."
+        description="Coding agents running on this Mac and the last seven days of sessions, read from Claude Code, Codex, and OpenCode history in your home directory. Cost is whatever the agent recorded itself; Codex and SDK-launched Claude Code report tokens only. Nothing leaves the machine."
         right={!remote && <Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -194,7 +194,7 @@ export default function AgentWatchPage() {
             </span>
           </div>
           {recent.length === 0 ? (
-            <EmptyState glyph="[ - ]" title={query ? "No matching sessions" : "No sessions this week"} hint="Claude Code and Codex logs are read from your home directory." />
+            <EmptyState glyph="[ - ]" title={query ? "No matching sessions" : "No sessions this week"} hint="Claude Code, Codex, and OpenCode history is read from your home directory." />
           ) : (
             <div className="grid min-w-0 gap-2.5">
               {recent.map((s) => (
