@@ -6,6 +6,7 @@ import {
   pruneWorktrees,
   deleteBranch,
 } from "@/lib/worktrees/scan";
+import { recordAction } from "@/lib/receipt";
 
 export async function POST(
   req: Request,
@@ -28,6 +29,7 @@ export async function POST(
         asString(body.worktreePath, "worktreePath"),
         asBool(body.force ?? false, "force"),
       );
+      await recordAction("worktree", 1);
       return Response.json({ ok: true });
     }
     if (action === "prune") {

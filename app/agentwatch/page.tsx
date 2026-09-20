@@ -217,6 +217,14 @@ export default function AgentWatchPage() {
             <span>Last 7 days</span>
             <span className="text-quiet tracking-[0.08em]">
               {recent.length} sessions{spend ? ` / ${usd(spend)} claude spend` : ""}
+              {remote ? null : (
+                <>
+                  {" / "}
+                  <Link href="/receipt" className="text-accent no-underline hover:underline">
+                    weekly receipt
+                  </Link>
+                </>
+              )}
             </span>
           </div>
           {recent.length === 0 ? (
