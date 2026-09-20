@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
-/* Design tokens carried over from the original Port Authority palette.
+/* Holographic HUD palette: cyan light on near-black, amber for structure.
    Every color utility (text-ink, bg-accent/10, border-line, ...) derives
    from this block. */
 @theme {
-  --color-ink: #f2f6fc;
-  --color-muted: #8593a8;
-  --color-quiet: #526178;
-  --color-accent: #68a9ff;
-  --color-alarm: #ff6b6b;
-  --color-ok: #6fe3a5;
-  --color-surface: #0b111c;
-  --color-line: #1c2a3e;
-  --color-line-bright: #304965;
+  --color-ink: #d9f6ff;
+  --color-muted: #7fa9b8;
+  --color-quiet: #47697a;
+  --color-accent: #4fd8ff;
+  --color-amber: #e8a94a;
+  --color-alarm: #ff5f52;
+  --color-ok: #5dffc4;
+  --color-surface: #061018;
+  --color-line: #123040;
+  --color-line-bright: #1f5a70;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif;
+
+  /* Projected glass has hard edges; flatten the named radii app-wide. */
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
 
   --animate-breathe: breathe 1s ease-in-out infinite alternate;
+  --animate-orbit: orbit 140s linear infinite;
+  --animate-orbit-reverse: orbit 90s linear infinite reverse;
+  --animate-power-on: power-on 0.45s ease-out both;
 
   @keyframes breathe {
     to {
       opacity: 0.48;
+    }
+  }
+
+  /* Panels project in: a bright horizontal sliver that opens vertically. */
+  @keyframes power-on {
+    from {
+      opacity: 0;
+      clip-path: inset(48% 0 48% 0);
+      filter: brightness(2.2);
+    }
+  }
+
+  @keyframes orbit {
+    to {
+      transform: rotate(360deg);
     }
   }
 }
@@ -28,7 +52,7 @@
 @layer base {
   html {
     min-height: 100%;
-    background: #070b14;
+    background: #02070b;
     color-scheme: dark;
   }
 
@@ -37,24 +61,23 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     background:
-      radial-gradient(circle at 82% -10%, rgba(104, 169, 255, 0.1), transparent 31rem),
-      radial-gradient(circle at -8% 72%, rgba(104, 169, 255, 0.05), transparent 26rem),
-      #070b14;
+      radial-gradient(circle at 70% 18%, rgba(79, 216, 255, 0.09), transparent 34rem),
+      radial-gradient(circle at 8% 88%, rgba(232, 169, 74, 0.045), transparent 28rem),
+      #02070b;
   }
 
-  /* Faint blueprint grid behind everything, fading out toward the bottom. */
+  /* Range rings radiating from the same point as the glow, over a dot grid. */
   body::before {
     position: fixed;
     inset: 0;
     z-index: -1;
     content: "";
     pointer-events: none;
-    opacity: 0.34;
     background-image:
-      linear-gradient(rgba(104, 169, 255, 0.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(104, 169, 255, 0.028) 1px, transparent 1px);
-    background-size: 42px 42px;
-    mask-image: linear-gradient(to bottom, black, transparent 84%);
+      repeating-radial-gradient(circle at 70% 18%, transparent 0 95px, rgba(79, 216, 255, 0.05) 95px 96px),
+      radial-gradient(rgba(79, 216, 255, 0.11) 1px, transparent 1px);
+    background-size: auto, 28px 28px;
+    mask-image: radial-gradient(circle at 70% 18%, black, transparent 78%);
   }
 
   button,
@@ -62,10 +85,26 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Prose and names are sans; anything typed or measured is mono. */
+  input,
+  textarea,
+  select {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: rgba(79, 216, 255, 0.28);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-bright) transparent;
+  }
+
   h1,
   h2,
   h3 {
-    letter-spacing: -0.03em;
+    letter-spacing: 0.02em;
   }
 }
 
@@ -89,19 +128,80 @@ select:not([multiple]):not([size]) {
 @utility eyebrow {
   color: var(--color-accent);
   font: 600 10px/1.2 var(--font-mono);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
 }
 
+/* Glass panel. The eight 1px gradients draw a bracket in each corner, just
+   inside whatever border the element carries. */
 @utility card-surface {
-  background: linear-gradient(115deg, rgba(15, 23, 35, 0.96), rgba(10, 16, 26, 0.96));
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  --bracket: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  --b: linear-gradient(var(--bracket), var(--bracket));
+  animation: var(--animate-power-on);
+  background:
+    var(--b) top left / 12px 1px,
+    var(--b) top left / 1px 12px,
+    var(--b) top right / 12px 1px,
+    var(--b) top right / 1px 12px,
+    var(--b) bottom left / 12px 1px,
+    var(--b) bottom left / 1px 12px,
+    var(--b) bottom right / 12px 1px,
+    var(--b) bottom right / 1px 12px,
+    linear-gradient(180deg, rgba(79, 216, 255, 0.055), rgba(79, 216, 255, 0.015));
+  background-repeat: no-repeat;
+  backdrop-filter: blur(6px);
+
+  /* Brackets idle dim and lock on, like a targeting reticle, under the pointer. */
+  &:hover,
+  &:focus-within {
+    --bracket: var(--color-accent);
+  }
+}
+
+/* A panel inside a panel is a plain row: one set of brackets per group. */
+.card-surface .card-surface {
+  background: rgba(79, 216, 255, 0.03);
+  backdrop-filter: none;
+  animation: none;
+}
+
+@utility section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-muted);
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+
+  & > :first-child::before {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin-right: 9px;
+    content: "";
+    background: var(--color-accent);
+    box-shadow: 0 0 8px var(--color-accent);
+    vertical-align: 1px;
+  }
+}
+
+@utility text-link {
+  color: var(--color-accent);
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-decoration: none;
+  text-transform: uppercase;
+
+  &:hover {
+    text-shadow: 0 0 12px var(--color-accent);
+  }
 }
 
 @utility berth-bg {
   background:
-    linear-gradient(135deg, rgba(104, 169, 255, 0.055), transparent 62%),
-    repeating-linear-gradient(90deg, transparent 0 11px, rgba(104, 169, 255, 0.02) 11px 12px);
+    linear-gradient(90deg, rgba(79, 216, 255, 0.07), transparent),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(79, 216, 255, 0.03) 3px 4px);
 }
 
 @utility exposed-line {
@@ -109,7 +209,22 @@ select:not([multiple]):not([size]) {
 }
 
 @utility mark-glow {
-  box-shadow: inset 0 0 24px rgba(104, 169, 255, 0.05), 0 12px 30px rgba(0, 0, 0, 0.42);
+  box-shadow: inset 0 0 24px rgba(79, 216, 255, 0.06), 0 0 18px rgba(79, 216, 255, 0.12);
+}
+
+@utility glow {
+  text-shadow: 0 0 14px color-mix(in srgb, currentColor 55%, transparent);
+}
+
+/* Graduated rule: a tick every 8px, a tall one every 40px. */
+@utility ruler {
+  height: 7px;
+  background:
+    repeating-linear-gradient(90deg, var(--color-accent) 0 1px, transparent 1px 40px) bottom / 100% 7px,
+    repeating-linear-gradient(90deg, var(--color-line-bright) 0 1px, transparent 1px 8px) bottom / 100% 3px,
+    linear-gradient(var(--color-line-bright), var(--color-line-bright)) bottom / 100% 1px;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(90deg, black 40%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

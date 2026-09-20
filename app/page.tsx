@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { apiGet } from "@/lib/client/api";
 import { usePoll } from "@/components/hooks";
@@ -75,6 +76,86 @@ function vitalCells(v: Vitals): Array<{ label: string; value: string; alarm?: bo
       alarm: v.battery.status === "discharging" && v.battery.pct < 20,
     },
   ].filter(Boolean) as Array<{ label: string; value: string; alarm?: boolean }>;
+}
+
+type Gauge = { label: string; pct: number; alarm?: boolean };
+
+function vitalGauges(v: Vitals): Gauge[] {
+  return [
+    v.loadAvg && {
+      label: "load",
+      pct: (v.loadAvg[0] / v.cores) * 100,
+      alarm: v.loadAvg[0] >= v.cores,
+    },
+    v.memFreePct !== null && { label: "ram used", pct: 100 - v.memFreePct },
+    v.disk && { label: "disk used", pct: v.disk.usedPct, alarm: v.disk.usedPct >= 90 },
+    v.battery && {
+      label: "battery",
+      pct: v.battery.pct,
+      alarm: v.battery.status === "discharging" && v.battery.pct < 20,
+    },
+  ].filter(Boolean) as Gauge[];
+}
+
+// Arcs start at 12 o'clock and sweep 270 degrees, which leaves the upper-left
+// quadrant free for their labels. pathLength=100 makes dash lengths percents.
+const SWEEP = 0.75;
+
+function VitalsRing({ vitals, attention }: { vitals: Vitals | null; attention: number }) {
+  const gauges = vitals ? vitalGauges(vitals) : [];
+  const ring = "origin-center [transform-box:view-box]";
+  return (
+    <svg
+      viewBox="0 0 400 400"
+      role="img"
+      aria-label={
+        vitals
+          ? gauges.map((g) => `${g.label} ${Math.round(g.pct)}%`).join(", ")
+          : "Reading system vitals"
+      }
+      className="mx-auto block h-auto w-full max-w-[380px] fill-none"
+    >
+      <circle cx="200" cy="200" r="192" pathLength={360} strokeDasharray="0.4 2.6" strokeWidth="6" className="stroke-line-bright" />
+      <circle cx="200" cy="200" r="190" pathLength={360} strokeDasharray="0.6 29.4" strokeWidth="12" className="stroke-accent/70" />
+      <circle cx="200" cy="200" r="177" strokeWidth="1" className="stroke-amber/50" />
+      <circle cx="200" cy="200" r="171" pathLength={360} strokeDasharray="52 14 8 46" strokeWidth="3" className={`${ring} animate-orbit stroke-amber/70`} />
+      {gauges.map((g, i) => {
+        const r = 154 - i * 17;
+        return (
+          <g key={g.label}>
+            <g transform="rotate(-90 200 200)" strokeWidth="9" pathLength={100}>
+              <circle cx="200" cy="200" r={r} pathLength={100} strokeDasharray={`${100 * SWEEP} 100`} className="stroke-accent/10" />
+              <circle
+                cx="200"
+                cy="200"
+                r={r}
+                pathLength={100}
+                strokeDasharray={`${Math.min(100, Math.max(0, g.pct)) * SWEEP} 100`}
+                className={`transition-[stroke-dasharray] duration-700 ${g.alarm ? "stroke-alarm" : "stroke-accent"}`}
+                style={{ filter: "drop-shadow(0 0 4px currentColor)" }}
+              />
+            </g>
+            <text
+              x="190"
+              y={200 - r + 3}
+              textAnchor="end"
+              className={`font-mono text-[8px] font-semibold uppercase tracking-[0.14em] ${g.alarm ? "fill-alarm" : "fill-muted"}`}
+            >
+              {g.label} {Math.round(g.pct)}
+            </text>
+          </g>
+        );
+      })}
+      <circle cx="200" cy="200" r="80" pathLength={360} strokeDasharray="1 5" strokeWidth="4" className={`${ring} animate-orbit-reverse stroke-line-bright`} />
+      <circle cx="200" cy="200" r="70" strokeWidth="1" className={attention ? "stroke-alarm/70" : "stroke-accent/60"} />
+      <text x="200" y="204" textAnchor="middle" className={`glow font-mono text-[40px] font-light ${attention ? "fill-alarm" : "fill-accent"}`}>
+        {vitals ? String(attention).padStart(2, "0") : "··"}
+      </text>
+      <text x="200" y="226" textAnchor="middle" className="fill-muted font-mono text-[8px] font-semibold uppercase tracking-[0.2em]">
+        {attention === 1 ? "module alert" : "module alerts"}
+      </text>
+    </svg>
+  );
 }
 
 const MODULES: ModuleCard[] = [
@@ -285,6 +366,11 @@ export default function OverviewPage() {
 
   usePoll(refresh, 5000);
 
+  const berths = MODULES.filter((m) => snaps[m.href]?.enabled !== false).map(
+    (m) => [m, berth(m, snaps[m.href])] as const,
+  );
+  const attention = berths.filter(([, b]) => b.tone === "alarm").length;
+
   return (
     <>
       <PageHeader
@@ -293,7 +379,7 @@ export default function OverviewPage() {
         description="Everything Dockmaster knows right now. Modules only scan while a page is open. Switch one off from its page or Settings and it leaves the sidebar too."
       />
       <ErrorNote message={error} />
-      <div className="mb-3.5 flex flex-wrap overflow-hidden rounded-[14px] border border-line">
+      <div className="mb-3.5 flex flex-wrap overflow-hidden rounded-[2px] border border-line">
         {vitals ? (
           vitalCells(vitals).map((c) => (
             <div key={c.label} className="flex grow basis-[148px] flex-col gap-[7px] -ml-px -mt-px border-l border-t border-line bg-surface px-5 py-3">
@@ -322,13 +408,15 @@ export default function OverviewPage() {
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3.5 max-[1280px]:grid-cols-2 max-[900px]:grid-cols-1">
-        {MODULES.filter((m) => snaps[m.href]?.enabled !== false).map((m) => {
-          const b = berth(m, snaps[m.href]);
+        <div className="col-start-2 row-span-3 row-start-1 self-center max-[1280px]:col-span-2 max-[1280px]:col-start-1 max-[1280px]:row-span-1 max-[900px]:col-span-1">
+          <VitalsRing vitals={vitals} attention={attention} />
+        </div>
+        {berths.map(([m, b]) => {
           return (
-            <a
+            <Link
               key={m.href}
               href={m.href}
-              className={`card-surface group relative grid min-h-[112px] grid-cols-[124px_minmax(0,1fr)] overflow-hidden rounded-[14px] border border-line no-underline transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[420px]:grid-cols-[104px_minmax(0,1fr)]${
+              className={`card-surface group relative grid min-h-[112px] grid-cols-[124px_minmax(0,1fr)] overflow-hidden rounded-[2px] border border-line no-underline transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[420px]:grid-cols-[104px_minmax(0,1fr)]${
                 b.tone === "alarm"
                   ? " after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
                   : ""
@@ -336,19 +424,19 @@ export default function OverviewPage() {
             >
               <div className="berth-bg flex min-w-0 flex-col justify-center gap-2 border-r border-line px-4 py-[18px]">
                 <div
-                  className={`font-mono text-[clamp(24px,2.6vw,30px)] leading-none tracking-[-0.07em] ${
+                  className={`glow font-mono text-[clamp(24px,2.6vw,30px)] font-light leading-none tracking-[-0.04em] ${
                     b.pending ? "animate-breathe text-quiet" : b.tone ? VALUE_TONE[b.tone] : "text-ink"
                   }`}
                 >
                   {b.value}
                 </div>
-                <div className="truncate font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet">
+                <div className="line-clamp-2 font-mono text-[9px] font-semibold uppercase leading-[1.5] tracking-[0.12em] text-quiet">
                   {b.label}
                 </div>
               </div>
               <div className="flex min-w-0 flex-col justify-center px-[18px] py-[18px] max-[420px]:px-4">
                 <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                  <h3 className="truncate text-[15px] text-ink">{m.title}</h3>
+                  <h3 className="truncate text-[13px] font-normal uppercase tracking-[0.12em] text-ink">{m.title}</h3>
                   <span
                     aria-hidden="true"
                     className="flex-none font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-quiet transition-colors group-hover:text-accent"
@@ -358,7 +446,7 @@ export default function OverviewPage() {
                 </div>
                 <p className="line-clamp-2 text-[11px] leading-[1.5] text-muted">{m.description}</p>
               </div>
-            </a>
+            </Link>
           );
         })}
       </div>

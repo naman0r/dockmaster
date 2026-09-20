@@ -34,7 +34,7 @@ function duration(a: string, b: string): string {
   return s < 3600 ? `${Math.max(1, Math.floor(s / 60))}m` : `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 }
 
-const SECTION = "flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted";
+const SECTION = "section-label px-0.5 mt-6 mb-3";
 const CARD = "card-surface grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright";
 const META = "mt-1.5 flex flex-wrap gap-x-[15px] gap-y-1 font-mono text-[9px] font-medium uppercase tracking-[0.06em] text-quiet";
 const tilde = (p: string) => p.replace(/^\/Users\/[^/]+/, "~");
@@ -47,7 +47,7 @@ function SessionCard({ s, machineId, w }: { s: Session; machineId: string; w?: W
     <article key={`${machineId}:${s.agent}:${s.id}`} className={CARD}>
       <div className="min-w-0">
         <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
-          <h3 className="m-0 min-w-0 max-w-full truncate text-base font-[650]" title={s.title}>
+          <h3 className="m-0 min-w-0 max-w-full truncate text-base font-medium" title={s.title}>
             {s.title || "(untitled session)"}
           </h3>
           {live ? <Badge variant="accent">{activeNow ? "working" : "waiting"}</Badge> : null}
@@ -74,7 +74,7 @@ function SessionCard({ s, machineId, w }: { s: Session; machineId: string; w?: W
         {w ? <ServerChips w={w} /> : null}
       </div>
       <div className="shrink-0 text-right font-mono text-[11px] leading-relaxed text-muted">
-        <div className="text-base font-[650] text-ink">{s.costUsd !== null ? usd(s.costUsd) : `${fmt(s.outputTokens)} out`}</div>
+        <div className="text-base font-medium text-ink">{s.costUsd !== null ? usd(s.costUsd) : `${fmt(s.outputTokens)} out`}</div>
         <div>{fmt(s.contextTokens)} in context</div>
         <div>{fmt(s.inputTokens + s.cacheReadTokens)} in / {fmt(s.outputTokens)} out</div>
       </div>
@@ -165,10 +165,10 @@ export default function AgentWatchPage() {
           {leftBehind.length ? (
             <Link
               href="/cleanup"
-              className="card-surface relative block overflow-hidden rounded-[14px] border border-line px-5 py-4 no-underline transition-colors hover:border-line-bright after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
+              className="card-surface relative block overflow-hidden rounded-[2px] border border-line px-5 py-4 no-underline transition-colors hover:border-line-bright after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
             >
               <span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-alarm">left behind</span>
-              <span className="mt-1.5 block text-[17px] font-[650] tracking-[-0.02em] text-ink">{headline(held.snap!.data!.leftovers)}</span>
+              <span className="mt-1.5 block text-[17px] font-medium tracking-[-0.02em] text-ink">{headline(held.snap!.data!.leftovers)}</span>
               <span className="mt-1 block font-mono text-[11px] text-muted">
                 {leftBehind.map((w) => w.project).join(", ")} · see why and clean up
               </span>
@@ -193,7 +193,7 @@ export default function AgentWatchPage() {
                 <article key={`${machine.id}:${a.pid}`} className={CARD}>
                   <div className="min-w-0">
                     <div className="mb-1.5 flex min-w-0 items-center gap-2">
-                      <h3 className="m-0 min-w-0 truncate text-base font-[650]">{a.kind}</h3>
+                      <h3 className="m-0 min-w-0 truncate text-base font-medium">{a.kind}</h3>
                       {a.project ? <Badge variant="scope">{a.project}</Badge> : null}
                       <Badge variant="quiet">no session log</Badge>
                     </div>

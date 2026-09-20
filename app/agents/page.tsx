@@ -125,7 +125,7 @@ export default function AgentsPage() {
       <div data-machine={machine.id}>
         <MachineNotice status={status} />
       </div>
-      <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="section-label px-0.5 mt-6 mb-3">
         <span>Agents</span>
         <span className="text-quiet tracking-[0.08em]">
           {running} running / {visible.length} total
@@ -151,7 +151,7 @@ export default function AgentsPage() {
               >
                 <div className="min-w-0">
                   <div className="mb-1.5 flex min-w-0 items-center gap-2">
-                    <h3 className="m-0 min-w-0 truncate text-base font-[650]" title={a.label}>
+                    <h3 className="m-0 min-w-0 truncate text-base font-medium" title={a.label}>
                       {a.label}
                     </h3>
                     <Badge variant={a.pid !== null ? "accent" : a.loaded ? "scope" : "quiet"}>

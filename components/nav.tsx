@@ -9,9 +9,10 @@ import { useModuleSettings } from "@/components/hooks";
 import type { ModuleId } from "@/lib/config.client";
 import { CommandPalette } from "@/components/command-palette";
 
-const LINK =
-  "group flex items-center gap-[11px] rounded-lg px-2.5 py-2 font-mono text-xs font-medium uppercase tracking-[0.09em] no-underline transition-colors hover:bg-accent/5 hover:text-ink";
-const LINK_ACTIVE = `${LINK} bg-accent/10 text-ink shadow-[inset_2px_0_0_var(--color-accent)]`;
+const LINK_BASE =
+  "group flex items-center gap-[11px] rounded-lg px-2.5 py-2 font-mono text-xs font-medium uppercase tracking-[0.14em] no-underline transition-colors hover:bg-accent/5 hover:text-ink";
+const LINK = `${LINK_BASE} text-muted`;
+const LINK_ACTIVE = `${LINK_BASE} glow bg-gradient-to-r from-accent/15 to-transparent text-accent shadow-[inset_2px_0_0_var(--color-accent)]`;
 const GLYPH =
   "w-[22px] text-center font-mono text-[10px] font-semibold text-quiet transition-colors group-hover:text-accent";
 
@@ -23,7 +24,7 @@ export function Nav() {
     (item) => modules?.[item.href.slice(1) as ModuleId] !== false,
   );
   return (
-    <aside className="sticky top-0 flex h-screen flex-col gap-[26px] border-r border-line bg-[#070b14]/60 px-[18px] pb-5 pt-[26px] backdrop-blur-md max-[900px]:static max-[900px]:h-auto max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-4 max-[900px]:border-b max-[900px]:border-r-0 max-[900px]:px-4 max-[900px]:py-4">
+    <aside className="sticky top-0 flex h-screen flex-col gap-[26px] border-r border-line bg-[#02070b]/70 px-[18px] pb-5 pt-[26px] backdrop-blur-md max-[900px]:static max-[900px]:h-auto max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-4 max-[900px]:border-b max-[900px]:border-r-0 max-[900px]:px-4 max-[900px]:py-4">
       <Link
         href="/"
         className="group flex items-center gap-3 rounded-lg px-1.5 py-1 no-underline transition-colors hover:bg-accent/5"
@@ -37,7 +38,7 @@ export function Nav() {
         />
         <span>
           <span className="eyebrow block mb-[3px]">Local console</span>
-          <span className="block text-[17px] font-[650] tracking-[-0.03em] text-ink">
+          <span className="block glow text-[15px] font-light uppercase tracking-[0.2em] text-ink">
             Dockmaster
           </span>
         </span>

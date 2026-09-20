@@ -50,7 +50,7 @@ function VolumeBar({ totalKb, freeKb, reclaimableKb }: { totalKb: number; freeKb
   ];
   return (
     <div className="mb-6">
-      <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-[4px]" aria-hidden="true">
+      <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-[2px]" aria-hidden="true">
         {segments.map((s) => (
           <span key={s.label} className={`h-full ${s.className}`} style={{ width: `${(s.kb / totalKb) * 100}%` }} />
         ))}
@@ -183,7 +183,7 @@ export default function DiskPage() {
             )}
           </div>
           {disk && <VolumeBar totalKb={disk.totalKb} freeKb={disk.freeKb} reclaimableKb={data.reclaimableKb} />}
-          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <div className="section-label px-0.5 mt-6 mb-3">
             <span>Repos with artifacts</span>
             <span className="text-quiet tracking-[0.08em]">{repos.length} of {data.repos.length}</span>
           </div>
@@ -216,7 +216,7 @@ export default function DiskPage() {
               </Card>
             ))
           )}
-          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <div className="section-label px-0.5 mt-6 mb-3">
             <span>Tool caches</span>
             <span className="text-quiet tracking-[0.08em]">{data.caches.length} present</span>
           </div>

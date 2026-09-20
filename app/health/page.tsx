@@ -204,7 +204,7 @@ export default function HealthPage() {
         <label className="flex min-w-0 flex-col gap-2 text-xs text-muted">
           Check name
           <input
-            className="w-full min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] font-mono text-[13px] text-ink caret-accent outline-none placeholder:text-quiet focus:border-accent"
+            className="w-full min-w-0 rounded-[2px] border border-line-bright bg-surface px-3 py-[9px] font-mono text-[13px] text-ink caret-accent outline-none placeholder:text-quiet focus:border-accent"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="Local API"
@@ -216,7 +216,7 @@ export default function HealthPage() {
         <label className="flex min-w-0 flex-col gap-2 text-xs text-muted">
           URL to check
           <input
-            className="w-full min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] font-mono text-[13px] text-ink caret-accent outline-none placeholder:text-quiet focus:border-accent"
+            className="w-full min-w-0 rounded-[2px] border border-line-bright bg-surface px-3 py-[9px] font-mono text-[13px] text-ink caret-accent outline-none placeholder:text-quiet focus:border-accent"
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}

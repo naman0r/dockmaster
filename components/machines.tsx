@@ -104,24 +104,50 @@ export function MachineSelector() {
     </label>
   );
 }
+function Clock() {
+  // Rendered after mount so the server and client markup agree.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <time className="ml-auto flex-none tabular-nums text-muted">
+      {now
+        ? `${now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} / ${now.toLocaleTimeString([], { hour12: false })}`
+        : ""}
+    </time>
+  );
+}
+
 export function MachineBoundary({ children }: { children: ReactNode }) {
   const { machine } = useMachine();
   const pathname = usePathname();
   const remote = machine.id !== "local";
   return (
     <section key={`${JSON.stringify(machine)}:${pathname}`}>
-      {pathname !== "/settings" && (
-        <p className="mb-4 font-mono text-xs text-muted">
-          {pathname === "/notepad"
-            ? "Shared notebook"
-            : `Viewing ${machine.name}`}
-          {pathname === "/notepad"
-            ? " · stored on this Mac"
-            : remote
-              ? " · Remote"
-              : " · Local"}
-        </p>
-      )}
+      <div className="mb-7 flex items-center gap-3 border-b border-line pb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-quiet">
+        {pathname !== "/settings" && (
+          <>
+            <span
+              aria-hidden="true"
+              className={`size-1.5 flex-none ${remote ? "bg-amber shadow-[0_0_8px_var(--color-amber)]" : "bg-accent shadow-[0_0_8px_var(--color-accent)]"}`}
+            />
+            <span className={`truncate ${remote ? "text-amber" : "text-muted"}`}>
+              {pathname === "/notepad"
+                ? "Shared notebook"
+                : `Viewing ${machine.name}`}
+              {pathname === "/notepad"
+                ? " · stored on this Mac"
+                : remote
+                  ? " · Remote"
+                  : " · Local"}
+            </span>
+          </>
+        )}
+        <Clock />
+      </div>
       {remote && pathname === "/" ? (
         <RemoteHarbor />
       ) : remote &&

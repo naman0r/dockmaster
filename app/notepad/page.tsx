@@ -104,7 +104,7 @@ export default function NotepadPage() {
 
   const notes = useMemo(() => snap?.data?.notes || [], [snap]);
   const composerClasses =
-    "w-full resize-y rounded-lg border border-line-bright bg-[#080e19] px-3.5 py-3 font-mono text-[13px] leading-relaxed text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent";
+    "w-full resize-y rounded-lg border border-line-bright bg-surface px-3.5 py-3 font-mono text-[13px] leading-relaxed text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent";
 
   return (
     <>
