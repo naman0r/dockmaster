@@ -9,6 +9,7 @@ import { moduleEnabled } from "@/lib/settings";
 import { agentWatchCache, scanAgentWatch, type RunningAgent, type Session } from "@/lib/agentwatch";
 import { findProject, scanServices, type Service } from "@/lib/ports/scan";
 import { stopService } from "@/lib/ports/stop";
+import { recordAction } from "@/lib/receipt";
 import {
   defaultBranchOf,
   pruneWorktrees,
@@ -278,5 +279,8 @@ export async function cleanupWorkspace(target: string): Promise<{
   }
   worktreesCache.invalidate();
   sessionsCache.invalidate();
-  return { stopped, stillListening, removed, freedKb: removed ? (w.tree?.sizeKb ?? 0) : 0, worktreeError };
+  const freedKb = removed ? (w.tree?.sizeKb ?? 0) : 0;
+  await recordAction("server", stopped.length);
+  await recordAction("worktree", removed ? 1 : 0, freedKb);
+  return { stopped, stillListening, removed, freedKb, worktreeError };
 }

@@ -128,6 +128,8 @@ export function foldClaudeLines(lines: string[], id: string): Folded | null {
     if (row.cwd && !f.cwd) f.cwd = row.cwd;
     if (row.gitBranch) f.branch = row.gitBranch;
     const m = row.message || {};
+    // A subagent's transcript opens with the prompt its parent wrote, not one of yours.
+    if (row.type === "user" && row.isSidechain) continue;
     if (row.type === "user" && !row.isMeta) {
       const text = promptText(m.content);
       if (text) {
@@ -145,8 +147,9 @@ export function foldClaudeLines(lines: string[], id: string): Folded | null {
     f.inputTokens += u.input_tokens || 0;
     f.outputTokens += u.output_tokens || 0;
     f.cacheReadTokens += u.cache_read_input_tokens || 0;
-    f.contextTokens =
-      (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
+    if (!row.isSidechain)
+      f.contextTokens =
+        (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
   }
   if (!substantial(f)) return null;
   f.title ||= firstPrompt.slice(0, 120);
@@ -154,10 +157,13 @@ export function foldClaudeLines(lines: string[], id: string): Folded | null {
   return f;
 }
 
-// Codex token_count rows carry cumulative totals; the last one wins.
+// Codex token_count rows carry cumulative totals, but the count starts over
+// when a session is resumed, so a drop means the previous total is banked.
 export function foldCodexLines(lines: string[], id: string): Folded | null {
   const f = blank("Codex", id);
   const models = new Set<string>();
+  const banked = { input: 0, cached: 0, output: 0 };
+  let running = { input: 0, cached: 0, output: 0 };
   for (const line of lines) {
     let row: Record<string, any>;
     try {
@@ -184,11 +190,19 @@ export function foldCodexLines(lines: string[], id: string): Folded | null {
       f.toolCalls += 1;
     } else if (row.type === "event_msg" && p.type === "token_count" && p.info?.total_token_usage) {
       const u = p.info.total_token_usage;
-      f.inputTokens = u.input_tokens || 0;
-      f.outputTokens = u.output_tokens || 0;
-      f.cacheReadTokens = u.cached_input_tokens || 0;
+      if ((u.input_tokens || 0) < running.input) {
+        banked.input += running.input;
+        banked.cached += running.cached;
+        banked.output += running.output;
+      }
+      running = { input: u.input_tokens || 0, cached: u.cached_input_tokens || 0, output: u.output_tokens || 0 };
+      // Codex counts cached tokens inside input_tokens; Claude Code and OpenCode
+      // report them apart, so split them here to keep the three comparable.
+      f.cacheReadTokens = banked.cached + running.cached;
+      f.inputTokens = Math.max(0, banked.input + running.input - f.cacheReadTokens);
+      f.outputTokens = banked.output + running.output;
       const last = p.info.last_token_usage;
-      if (last) f.contextTokens = (last.input_tokens || 0) + (last.cached_input_tokens || 0);
+      if (last) f.contextTokens = last.input_tokens || 0;
     }
   }
   if (!substantial(f)) return null;
@@ -267,6 +281,15 @@ async function readLines(file: string): Promise<string[]> {
   return lines;
 }
 
+// Claude Code writes each subagent run to <session>/subagents/agent-*.jsonl.
+// Their tokens are part of the session's spend, so they fold in with it.
+async function sessionLines(file: string): Promise<string[]> {
+  const dir = path.join(file.replace(/\.jsonl$/, ""), "subagents");
+  const subs = (await fs.readdir(dir).catch(() => [] as string[])).filter((n) => n.endsWith(".jsonl"));
+  const parts = await Promise.all([file, ...subs.map((n) => path.join(dir, n))].map(readLines));
+  return parts.flat();
+}
+
 async function recentJsonl(dir: string, since: number, depth: number): Promise<string[]> {
   const out: string[] = [];
   const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -335,7 +358,7 @@ export async function scanAgentWatch(): Promise<AgentWatchData> {
     const files = await recentJsonl(dir, since, depth);
     const results = await mapLimit(files, 4, async (file) => {
       const id = path.basename(file, ".jsonl").replace(/^rollout-[\dT-]+-/, "");
-      return fold(await readLines(file), id);
+      return fold(await sessionLines(file), id);
     });
     for (const r of results) if (r) folded.push(r);
   }
