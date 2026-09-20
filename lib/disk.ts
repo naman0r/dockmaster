@@ -78,7 +78,7 @@ export function parseDu(output: string): Map<string, number> {
   return sizes;
 }
 
-async function du(paths: string[], flags: string[] = []): Promise<Map<string, number>> {
+export async function du(paths: string[], flags: string[] = []): Promise<Map<string, number>> {
   if (!paths.length) return new Map();
   const out = await exec(["/usr/bin/du", "-sk", ...flags, ...paths], {
     timeoutMs: 90000,

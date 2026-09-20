@@ -27,6 +27,8 @@ One Next.js 15 process, App Router, no database. Every module is the same four p
 3. `app/<module>/page.tsx`: client component, `useMachineApi()` for fetches, `usePoll()` for refresh. Nothing polls while the tab is hidden.
 4. A card in `app/page.tsx` (Harbor), a link in `lib/navigation.ts`, and an entry in `MODULES` in `lib/settings.ts` so the module can be switched off.
 
+Agent Watch also shows what sessions hold, and `app/cleanup` lists what they left behind. `lib/sessions.ts` joins Agent Watch, Ports, and Worktrees into one row per folder an agent worked in and decides what counts as a leftover; `buildWorkspaces` is pure and holds every rule, so change leftover rules there and in `lib/sessions.test.ts`. The join is local-only, so the page skips it on remote machines.
+
 `lib/machines/` makes the same modules run on another Mac over SSH. The dashboard spawns `companion.cjs` there and speaks newline-delimited JSON (`protocol.ts`). To make a module remote-capable, add it to `READ_OPERATIONS` and its zod payload schema in `protocol.ts`, dispatch it in `collector.ts`, allow its routes in `allowlist.ts` and `routes.ts`, handle its action in `actions.ts`, and bump `COMPANION_VERSION` (the SSH handshake rejects mismatches; `ssh.test.ts` pins the string). Payload schemas strip unknown keys, so a new field that is not in the schema silently disappears on remote machines.
 
 ### Invariants that must survive any change

@@ -216,9 +216,12 @@ const MODULES: ModuleCard[] = [
     glyph: "AW",
     title: "Agent Watch",
     description: "Coding agents running here and today's token use.",
-    endpoint: "/api/agentwatch",
+    endpoint: "/api/sessions",
     metric: (s) => {
-      const n = countOf((s.data as { running?: unknown[] } | null)?.running);
+      const data = s.data as { workspaces?: Array<{ agents: unknown[] }>; leftovers?: { servers: number; worktrees: number } } | null;
+      const left = (data?.leftovers?.servers || 0) + (data?.leftovers?.worktrees || 0);
+      if (left) return { value: String(left), label: "left behind", tone: "alarm" };
+      const n = (data?.workspaces || []).reduce((acc, w) => acc + countOf(w.agents), 0);
       return { value: String(n), label: n === 1 ? "agent running" : "agents running" };
     },
   },

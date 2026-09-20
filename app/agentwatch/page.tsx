@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useMachineApi, MachineNotice } from "@/components/machine-api";
 import { usePoll } from "@/components/hooks";
 import { Badge, EmptyState, ErrorNote, PageHeader, SearchInput, Toggle, useToast } from "@/components/ui";
+import { ServerChips, TreeBadges, hasLeftovers, headline, useSessions } from "@/components/workspace-row";
 import type { AgentWatchData, Session } from "@/lib/agentwatch";
+import type { Workspace } from "@/lib/sessions";
 
 type Snapshot = {
   enabled: boolean;
@@ -36,7 +39,8 @@ const CARD = "card-surface grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-cen
 const META = "mt-1.5 flex flex-wrap gap-x-[15px] gap-y-1 font-mono text-[9px] font-medium uppercase tracking-[0.06em] text-quiet";
 const tilde = (p: string) => p.replace(/^\/Users\/[^/]+/, "~");
 
-function SessionCard({ s, machineId }: { s: Session; machineId: string }) {
+// w is set on the newest card of a folder only, so its servers are listed once.
+function SessionCard({ s, machineId, w }: { s: Session; machineId: string; w?: Workspace }) {
   const live = s.pid !== null;
   const activeNow = live && Date.now() - new Date(s.lastActive).getTime() < 90_000;
   return (
@@ -48,6 +52,7 @@ function SessionCard({ s, machineId }: { s: Session; machineId: string }) {
           </h3>
           {live ? <Badge variant="accent">{activeNow ? "working" : "waiting"}</Badge> : null}
           <Badge variant="scope">{s.agent}</Badge>
+          {w ? <TreeBadges w={w} /> : null}
         </div>
         <div className="truncate font-mono text-[11px] text-muted" title={s.cwd}>
           {s.project}
@@ -66,6 +71,7 @@ function SessionCard({ s, machineId }: { s: Session; machineId: string }) {
             </span>
           ) : null}
         </div>
+        {w ? <ServerChips w={w} /> : null}
       </div>
       <div className="shrink-0 text-right font-mono text-[11px] leading-relaxed text-muted">
         <div className="text-base font-[650] text-ink">{s.costUsd !== null ? usd(s.costUsd) : `${fmt(s.outputTokens)} out`}</div>
@@ -83,6 +89,8 @@ export default function AgentWatchPage() {
   const [query, setQuery] = useState("");
   const [enabled, setEnabled] = useState(true);
   const toast = useToast();
+  // The join with ports and worktrees reads this Mac only.
+  const held = useSessions(!remote);
 
   const refresh = useCallback(async () => {
     try {
@@ -123,12 +131,17 @@ export default function AgentWatchPage() {
   const orphans = (snap?.data?.running || []).filter((r) => !claimed.has(r.pid));
   const spend = sessions.reduce((n, s) => n + (s.costUsd || 0), 0);
 
+  const workspaces = (!remote && held.snap?.data?.workspaces) || [];
+  const byNewest = new Map(workspaces.filter((w) => w.sessions[0]).map((w) => [`${w.sessions[0].agent}:${w.sessions[0].id}`, w]));
+  const byAgentPid = new Map(workspaces.filter((w) => !w.sessions.length).flatMap((w) => w.agents.map((a) => [a.pid, w] as const)));
+  const leftBehind = workspaces.filter(hasLeftovers);
+
   return (
     <>
       <PageHeader
         eyebrow="Crew on deck"
         title="Agent Watch"
-        description="Coding agents running on this Mac and the last seven days of sessions, read from Claude Code, Codex, and OpenCode history in your home directory. Cost is whatever the agent recorded itself; Codex and SDK-launched Claude Code report tokens only. Nothing leaves the machine."
+        description="Coding agents running on this Mac and the last seven days of sessions, read from Claude Code, Codex, and OpenCode history in your home directory. Each folder's newest session lists the servers running there, and anything a finished agent left behind is flagged at the top of the page. Cost is whatever the agent recorded itself; Codex and SDK-launched Claude Code report tokens only. Nothing leaves the machine."
         right={!remote && <Toggle checked={enabled} onChange={toggleModule} label="Module on" />}
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -149,6 +162,18 @@ export default function AgentWatchPage() {
         <EmptyState glyph="[x]" title="Module off" hint="Switch it back on above." />
       ) : (
         <>
+          {leftBehind.length ? (
+            <Link
+              href="/cleanup"
+              className="card-surface relative block overflow-hidden rounded-[14px] border border-line px-5 py-4 no-underline transition-colors hover:border-line-bright after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
+            >
+              <span className="block font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-alarm">left behind</span>
+              <span className="mt-1.5 block text-[17px] font-[650] tracking-[-0.02em] text-ink">{headline(held.snap!.data!.leftovers)}</span>
+              <span className="mt-1 block font-mono text-[11px] text-muted">
+                {leftBehind.map((w) => w.project).join(", ")} · see why and clean up
+              </span>
+            </Link>
+          ) : null}
           <div className={SECTION}>
             <span>Running now</span>
             <span className="text-quiet tracking-[0.08em]">{live.length + orphans.length} total</span>
@@ -162,7 +187,7 @@ export default function AgentWatchPage() {
           ) : (
             <div className="grid min-w-0 gap-2.5">
               {live.map((s) => (
-                <SessionCard key={`${machine.id}:${s.agent}:${s.id}`} s={s} machineId={machine.id} />
+                <SessionCard key={`${machine.id}:${s.agent}:${s.id}`} s={s} machineId={machine.id} w={byNewest.get(`${s.agent}:${s.id}`)} />
               ))}
               {orphans.map((a) => (
                 <article key={`${machine.id}:${a.pid}`} className={CARD}>
@@ -180,6 +205,7 @@ export default function AgentWatchPage() {
                       <span>started {since(a.startedAt)}</span>
                       {a.cwd ? <span className="normal-case">{tilde(a.cwd)}</span> : null}
                     </div>
+                    {byAgentPid.has(a.pid) ? <ServerChips w={byAgentPid.get(a.pid)!} /> : null}
                   </div>
                   <div />
                 </article>
@@ -198,7 +224,7 @@ export default function AgentWatchPage() {
           ) : (
             <div className="grid min-w-0 gap-2.5">
               {recent.map((s) => (
-                <SessionCard key={`${machine.id}:${s.agent}:${s.id}`} s={s} machineId={machine.id} />
+                <SessionCard key={`${machine.id}:${s.agent}:${s.id}`} s={s} machineId={machine.id} w={byNewest.get(`${s.agent}:${s.id}`)} />
               ))}
             </div>
           )}
