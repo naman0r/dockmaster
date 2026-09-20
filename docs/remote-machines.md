@@ -65,7 +65,7 @@ Use these verified values:
 
 Save, Test connection, then select Homelab in the sidebar. Saving does not install or execute anything. Test connection explicitly executes the configured companion and reports hostname, OS, user, version, root, and capabilities. An updated companion requires Test connection or a coordinating backend restart to replace an existing session.
 
-Protocol and companion versions are now **2 / 2.3.0** (Agent Watch). The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
+Protocol and companion versions are now **2 / 2.4.0** (Agent Watch with OpenCode). The earlier Ports/Vitals-only companion is incompatible; rebuild/install from this checkout. Update the absolute Node path if the remote Node version changes.
 
 Machine UUIDs persist independently of names/hostnames in `machines.json` under `DOCKMASTER_DATA_DIR` (default `~/.dockmaster`), written atomically with mode 0600. Existing module settings remain in `settings.json`. Module toggles currently apply dashboard-wide and are changed on This Mac. Selection persists per browser tab; Notepad stays shared.
 

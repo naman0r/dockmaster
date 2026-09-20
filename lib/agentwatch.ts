@@ -19,7 +19,7 @@ export type RunningAgent = {
 };
 
 export type Session = {
-  agent: "Claude Code" | "Codex";
+  agent: "Claude Code" | "Codex" | "OpenCode";
   id: string;
   title: string;
   cwd: string;
@@ -196,6 +196,70 @@ export function foldCodexLines(lines: string[], id: string): Folded | null {
   return f;
 }
 
+// OpenCode keeps totals per session in SQLite, so there is nothing to fold line
+// by line. Subagent runs are child sessions; their spend belongs to the parent.
+export function foldOpenCodeRows(rows: Record<string, any>[]): Folded[] {
+  const byId = new Map<string, Folded>();
+  for (const r of rows) {
+    const f = blank("OpenCode", r.id, r.directory || "");
+    f.title = String(r.title || "").slice(0, 120);
+    try {
+      f.models = [JSON.parse(r.model).id].filter(Boolean);
+    } catch {}
+    f.prompts = r.prompts || 0;
+    f.toolCalls = r.tools || 0;
+    f.inputTokens = r.tokens_input || 0;
+    f.outputTokens = r.tokens_output || 0;
+    f.cacheReadTokens = r.tokens_cache_read || 0;
+    f.costUsd = r.cost || 0;
+    f.linesAdded = r.summary_additions || 0;
+    f.linesRemoved = r.summary_deletions || 0;
+    f.startedAt = new Date(r.time_created).toISOString();
+    f.lastActive = new Date(r.time_updated).toISOString();
+    try {
+      const t = JSON.parse(r.last_tokens);
+      f.contextTokens = (t.input || 0) + (t.cache?.read || 0) + (t.cache?.write || 0);
+    } catch {}
+    byId.set(r.id, f);
+  }
+  const parentOf = new Map(rows.map((r) => [r.id, r.parent_id as string | null]));
+  for (const [id, f] of byId) {
+    let top = parentOf.get(id);
+    if (!top) continue;
+    while (parentOf.get(top)) top = parentOf.get(top)!;
+    const p = byId.get(top);
+    byId.delete(id);
+    if (!p) continue;
+    p.toolCalls += f.toolCalls;
+    p.inputTokens += f.inputTokens;
+    p.outputTokens += f.outputTokens;
+    p.cacheReadTokens += f.cacheReadTokens;
+    p.costUsd = (p.costUsd || 0) + (f.costUsd || 0);
+    if (f.lastActive > p.lastActive) p.lastActive = f.lastActive;
+  }
+  return [...byId.values()].filter(substantial);
+}
+
+// ponytail: reads OpenCode's internal schema; any failure means no OpenCode rows
+// rather than a broken page. Pin columns per version if upgrades start breaking it.
+async function openCodeSessions(home: string, since: number): Promise<Folded[]> {
+  const db = path.join(process.env.XDG_DATA_HOME || path.join(home, ".local", "share"), "opencode", "opencode.db");
+  const role = (r: string) => `json_extract(m.data,'$.role')='${r}'`;
+  const sql = `select s.id, s.parent_id, s.title, s.directory, s.model, s.cost, s.tokens_input, s.tokens_output,
+    s.tokens_cache_read, s.summary_additions, s.summary_deletions, s.time_created, s.time_updated,
+    (select count(*) from message m where m.session_id=s.id and ${role("user")}) prompts,
+    (select count(*) from part p where p.session_id=s.id and json_extract(p.data,'$.type')='tool') tools,
+    (select json_extract(m.data,'$.tokens') from message m where m.session_id=s.id and ${role("assistant")}
+      order by m.time_created desc limit 1) last_tokens
+    from session s where s.time_updated >= ${Math.floor(since)}`;
+  try {
+    await fs.access(db);
+    return foldOpenCodeRows(JSON.parse((await exec(["/usr/bin/sqlite3", "-readonly", "-json", db, sql], { timeoutMs: 8000 })) || "[]"));
+  } catch {
+    return [];
+  }
+}
+
 async function readLines(file: string): Promise<string[]> {
   const lines: string[] = [];
   const rl = readline.createInterface({ input: createReadStream(file), crlfDelay: Infinity });
@@ -275,6 +339,7 @@ export async function scanAgentWatch(): Promise<AgentWatchData> {
     });
     for (const r of results) if (r) folded.push(r);
   }
+  folded.push(...(await openCodeSessions(home, since)));
   folded.sort((a, b) => b.lastActive.localeCompare(a.lastActive));
 
   // A process claims a session by --session-id, else by sharing a cwd with

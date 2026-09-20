@@ -11,7 +11,7 @@ import type { DiskData } from "@/lib/disk";
 import type { ContainersData } from "@/lib/containers";
 import type { AgentWatchData } from "@/lib/agentwatch";
 export const VERSION = 2;
-export const COMPANION_VERSION = "2.3.0";
+export const COMPANION_VERSION = "2.4.0";
 export const MAX_MESSAGE = 2 * 1024 * 1024;
 export const READ_OPERATIONS = [
   "ports",
@@ -330,7 +330,7 @@ const schemas = {
     sessions: z
       .array(
         z.object({
-          agent: z.enum(["Claude Code", "Codex"]),
+          agent: z.enum(["Claude Code", "Codex", "OpenCode"]),
           id: str,
           title: str,
           cwd: str,
