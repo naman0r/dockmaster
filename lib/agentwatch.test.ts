@@ -70,6 +70,17 @@ describe("foldClaudeLines", () => {
       lastActive: "2026-09-17T03:19:18.914Z",
     });
   });
+  it("adds a subagent's tokens without counting its prompt or its context", () => {
+    const side = JSON.parse(assistant("sub1", 1));
+    side.isSidechain = true;
+    side.message.usage = { input_tokens: 1, output_tokens: 40, cache_read_input_tokens: 7 };
+    const f = foldClaudeLines(
+      [user("fix the cart"), assistant("m1", 1), user("go on"), assistant("m2"), user("delegated task", { isSidechain: true }), JSON.stringify(side)],
+      "s1",
+    )!;
+    expect(f).toMatchObject({ prompts: 2, toolCalls: 2, outputTokens: 50, contextTokens: 130 });
+  });
+
   it("prefers the CLI's ai-title and drops empty or one-shot transcripts", () => {
     const f = foldClaudeLines([JSON.stringify({ type: "ai-title", aiTitle: "Cart fix" }), user("fix the cart"), assistant("m1", 1)], "s")!;
     expect(f.title).toBe("Cart fix");
@@ -95,16 +106,30 @@ describe("foldCodexLines", () => {
       title: "add tests",
       prompts: 1,
       toolCalls: 1,
-      inputTokens: 50,
+      inputTokens: 30,
       outputTokens: 9,
       cacheReadTokens: 20,
-      contextTokens: 50,
+      contextTokens: 30,
       branch: "main",
       cwd: "/Users/x/Developer/site",
       lastActive: "2026-08-22T22:30:00Z",
       models: ["gpt-5-codex"],
       costUsd: null,
     });
+  });
+});
+
+describe("foldCodexLines after a resume", () => {
+  it("keeps the usage from before the running total started over", () => {
+    const count = (input: number, cached: number, output: number) =>
+      JSON.stringify({
+        timestamp: "2026-09-14T01:00:00Z", type: "event_msg",
+        payload: { type: "token_count", info: { total_token_usage: { input_tokens: input, cached_input_tokens: cached, output_tokens: output } } },
+      });
+    const prompt = JSON.stringify({ type: "response_item", payload: { type: "message", role: "user", content: [{ type: "input_text", text: "go" }] } });
+    const tool = JSON.stringify({ type: "response_item", payload: { type: "custom_tool_call" } });
+    const f = foldCodexLines([prompt, tool, count(100, 60, 5), count(900, 700, 40), count(50, 10, 2), count(300, 200, 9)], "c2")!;
+    expect(f).toMatchObject({ inputTokens: 300, cacheReadTokens: 900, outputTokens: 49 });
   });
 });
 
