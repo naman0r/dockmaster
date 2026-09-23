@@ -132,7 +132,7 @@ export default function SecretsPage() {
         <EmptyState glyph="[…]" title="Walking your dev root" />
       ) : (
         <>
-          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <div className="section-label px-0.5 mt-6 mb-3">
             <span>Tracked findings</span>
             <span className="text-quiet tracking-[0.08em]">
               {data.findings.length} total
@@ -174,7 +174,7 @@ export default function SecretsPage() {
               </Card>
             ))
           )}
-          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <div className="section-label px-0.5 mt-6 mb-3">
             <span>Env drift</span>
             <span className="text-quiet tracking-[0.08em]">
               {data.envDrift.length} {data.envDrift.length === 1 ? "repo" : "repos"}
@@ -197,7 +197,7 @@ export default function SecretsPage() {
               </div>
             </Card>
           )}
-          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <div className="section-label px-0.5 mt-6 mb-3">
             <span>Untracked .env files</span>
             <span className="text-quiet tracking-[0.08em]">
               {data.untrackedEnvFiles.length} (the good kind)

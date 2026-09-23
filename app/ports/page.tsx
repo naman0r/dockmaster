@@ -240,9 +240,11 @@ export default function PortsPage() {
       <p role="status" className="text-xs text-muted">
         {error && snap?.data
           ? "Stale · last successful snapshot"
-          : snap?.state || (error ? "Unreachable" : "Loading")}
+          : snap?.state === "ready"
+            ? ""
+            : snap?.state || (error ? "Unreachable" : "Loading")}
       </p>
-      <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="section-label px-0.5 mt-6 mb-3">
         <span>Active berths</span>
         <span className="text-quiet tracking-[0.08em]">
           {uniquePorts} ports / {visible.length} entries
@@ -292,7 +294,7 @@ export default function PortsPage() {
                     : `${s.pid}:${s.port}`,
                 )}
                 tabIndex={-1}
-                className={`card-surface relative grid min-h-[132px] grid-cols-[164px_minmax(0,1fr)_auto] overflow-hidden rounded-[14px] border border-line transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright max-[810px]:grid-cols-[126px_minmax(0,1fr)]${
+                className={`card-surface relative grid min-h-[132px] grid-cols-[164px_minmax(0,1fr)_auto] overflow-hidden rounded-[2px] border border-line transition-[border-color,transform] hover:-translate-y-px hover:border-line-bright max-[810px]:grid-cols-[126px_minmax(0,1fr)]${
                   s.isExposed
                     ? " after:content-[''] after:absolute after:inset-x-0 after:top-0 after:h-px after:exposed-line after:opacity-50"
                     : ""
@@ -310,7 +312,7 @@ export default function PortsPage() {
                 <div className="min-w-0 px-6 py-5">
                   <div className="mb-2.5 flex min-w-0 items-center gap-2">
                     <h3
-                      className="m-0 min-w-0 truncate text-base font-[650]"
+                      className="m-0 min-w-0 truncate text-base font-medium"
                       title={s.repoPath ? `Open ${s.project} in Repos` : s.project}
                     >
                       {s.repoPath ? (
@@ -341,7 +343,7 @@ export default function PortsPage() {
                     className="font-mono text-muted truncate mb-2 text-[11px] before:content-['cwd__'] before:text-accent before:opacity-70"
                     title={s.cwd}
                   >
-                    cwd {compactPath(s.cwd, s.user)}
+                    {compactPath(s.cwd, s.user)}
                   </div>
                   <div className="flex flex-wrap gap-y-1.5 gap-x-[15px] font-mono text-[9px] font-medium uppercase leading-[1.3] tracking-[0.06em] text-quiet [&>span+span]:relative [&>span+span]:after:absolute [&>span+span]:after:-left-2.5 [&>span+span]:after:text-line-bright [&>span+span]:after:content-['/']">
                     <span>PID {s.pid}</span>
@@ -371,7 +373,7 @@ export default function PortsPage() {
                     <OpenRemotePort service={s} lease={lease} />
                   ) : (
                     <a
-                      className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border border-line-bright px-4 font-mono text-[10px] font-[650] uppercase tracking-[0.1em] no-underline outline-none transition-colors text-muted hover:border-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="inline-flex min-h-9 min-w-[88px] items-center justify-center rounded-lg border border-line-bright px-4 font-mono text-[10px] font-medium uppercase tracking-[0.1em] no-underline outline-none transition-colors text-muted hover:border-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       href={remote ? undefined : `http://localhost:${s.port}/`}
                       aria-disabled={remote}
                       title={

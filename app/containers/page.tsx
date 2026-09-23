@@ -121,7 +121,7 @@ export default function ContainersPage() {
       <div data-machine={machine.id}>
         <MachineNotice status={status} />
       </div>
-      <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="section-label px-0.5 mt-6 mb-3">
         <span>Containers</span>
         <span className="text-quiet tracking-[0.08em]">
           {running} running / {visible.length} total
@@ -153,7 +153,7 @@ export default function ContainersPage() {
               >
                 <div className="min-w-0">
                   <div className="mb-1.5 flex min-w-0 items-center gap-2">
-                    <h3 className="m-0 min-w-0 truncate text-base font-[650]" title={c.name}>
+                    <h3 className="m-0 min-w-0 truncate text-base font-medium" title={c.name}>
                       {c.name}
                     </h3>
                     <Badge variant={isRunning ? "accent" : "quiet"}>{c.state || "unknown"}</Badge>

@@ -143,7 +143,7 @@ export function ServerChips({ w }: { w: Workspace }) {
           key={`${s.pid}:${s.port}`}
           href={targetHref("/ports", "port", `${s.pid}:${s.port}`)}
           title={OWNER_TITLE[s.owner]}
-          className={`rounded-[5px] border px-[7px] py-1 font-mono text-[10px] no-underline transition-colors hover:border-line-bright ${OWNER_TONE[s.owner]}`}
+          className={`rounded-[2px] border px-[7px] py-1 font-mono text-[10px] no-underline transition-colors hover:border-line-bright ${OWNER_TONE[s.owner]}`}
         >
           :{s.port} {s.kind}
           {s.owner === "leftover" ? " · left behind" : s.owner === "agent" ? " · agent's" : ""}
@@ -172,7 +172,7 @@ export function WorkspaceRow({
     <article className="card-surface grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-line px-[18px] py-3.5 transition-colors hover:border-line-bright max-[560px]:grid-cols-1">
       <div className="min-w-0">
         <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
-          <h3 className="m-0 min-w-0 max-w-full truncate text-base font-[650]">{w.project}</h3>
+          <h3 className="m-0 min-w-0 max-w-full truncate text-base font-medium">{w.project}</h3>
           {w.agents.length ? <Badge variant="accent">{working ? "working" : live.length ? "waiting" : "running"}</Badge> : null}
           {kinds.map((k) => (
             <Badge key={k} variant="scope">{k}</Badge>
@@ -203,7 +203,7 @@ export function WorkspaceRow({
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2 text-right font-mono text-[11px] text-muted max-[560px]:items-start">
-        {w.costUsd ? <div className="text-base font-[650] text-ink">{usd(w.costUsd)}</div> : null}
+        {w.costUsd ? <div className="text-base font-medium text-ink">{usd(w.costUsd)}</div> : null}
         {hasLeftovers(w) ? (
           <Button variant="stop" busy={busy} onClick={() => onCleanup(w)} title={`Will ${cleanupSummary(w)}`}>
             Clean up

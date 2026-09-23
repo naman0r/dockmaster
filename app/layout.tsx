@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070b14",
+  themeColor: "#02070b",
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
           <MachineProvider>
             <div className="grid min-h-screen grid-cols-[216px_minmax(0,1fr)] max-[900px]:grid-cols-1">
               <Nav />
-              <main className="mx-auto w-[min(1180px,calc(100%-56px))] pt-10 pb-12 max-[900px]:w-[min(100%-32px,760px)] max-[900px]:pt-[26px] max-[560px]:w-[calc(100%-18px)]">
+              <main className="mx-auto w-[min(1180px,calc(100%-56px))] pt-6 pb-12 max-[900px]:w-[min(100%-32px,760px)] max-[900px]:pt-[26px] max-[560px]:w-[calc(100%-18px)]">
                 <MachineBoundary>{children}</MachineBoundary>
               </main>
             </div>

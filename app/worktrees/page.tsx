@@ -173,7 +173,7 @@ export default function WorktreesPage() {
                 /* Optional preference. */
               }
             }}
-            className="min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] text-xs text-ink outline-none focus:border-accent"
+            className="min-w-0 rounded-[2px] border border-line-bright bg-surface px-3 py-[9px] text-xs text-ink outline-none focus:border-accent"
           >
             {Object.entries(WORKTREE_SORTS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -275,7 +275,7 @@ export default function WorktreesPage() {
                           )!}
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent"
+                          className="text-link focus-visible:outline-2 focus-visible:outline-accent"
                         >
                           Find PRs ↗
                         </a>
@@ -349,7 +349,7 @@ export default function WorktreesPage() {
                             )!}
                             target="_blank"
                             rel="noreferrer"
-                            className="ml-3 rounded text-xs text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent"
+                            className="text-link ml-3 focus-visible:outline-2 focus-visible:outline-accent"
                           >
                             Find PRs ↗
                           </a>

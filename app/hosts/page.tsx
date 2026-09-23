@@ -139,7 +139,7 @@ export default function HostsPage() {
         <EmptyState glyph="[…]" title="Reading /etc/hosts" />
       ) : (
         <>
-          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <div className="section-label px-0.5 mt-6 mb-3">
             <span>Current /etc/hosts</span>
             <span className="text-quiet tracking-[0.08em]">
               {data.activeProfile
@@ -155,21 +155,22 @@ export default function HostsPage() {
                   className={`font-mono truncate text-xs${e.enabled ? "" : " opacity-45"}`}
                   title={e.raw}
                 >
-                  {!e.enabled ? <span className="text-quiet">off </span> : null}
-                  <span className={e.enabled ? "text-accent" : undefined}>
-                    {e.ip || "—"}
-                  </span>
-                  {"  "}
-                  <span className="text-muted">{e.hostnames.join(" ")}</span>
+                  {e.ip ? (
+                    <>
+                      <span className="text-accent">{e.ip}</span>
+                      {"  "}
+                      <span className="text-muted">{e.hostnames.join(" ")}</span>
+                    </>
+                  ) : null}
                   {e.comment ? (
-                    <span className="text-quiet"> {e.comment}</span>
+                    <span className="text-quiet">{e.ip ? " " : ""}{e.comment}</span>
                   ) : null}
                 </div>
               ))}
             </div>
           </Card>
 
-          <div className="flex items-center justify-between px-0.5 mt-6 mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
+          <div className="section-label px-0.5 mt-6 mb-3">
             <span>Profiles</span>
             <span className="text-quiet tracking-[0.08em]">
               {data.profiles.length} saved
@@ -180,7 +181,7 @@ export default function HostsPage() {
               className={`flex flex-wrap items-center gap-3 ${data.profiles.length ? "mb-3.5" : "mb-0"}`}
             >
               <input
-                className="max-w-[260px] rounded-[9px] border border-line-bright bg-[#080e19] py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
+                className="max-w-[260px] rounded-[2px] border border-line-bright bg-surface py-[9px] pl-3 pr-3 font-mono text-[13px] text-ink caret-accent outline-none transition-colors placeholder:text-quiet focus:border-accent"
                 value={profileName}
                 onChange={(e) => setProfileName(e.target.value)}
                 placeholder="new profile name"

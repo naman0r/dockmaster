@@ -155,7 +155,7 @@ export default function ReposPage() {
                 /* Optional preference. */
               }
             }}
-            className="min-w-0 rounded-[9px] border border-line-bright bg-[#080e19] px-3 py-[9px] text-xs text-ink outline-none focus:border-accent"
+            className="min-w-0 rounded-[2px] border border-line-bright bg-surface px-3 py-[9px] text-xs text-ink outline-none focus:border-accent"
           >
             {Object.entries(REPO_SORTS).map(([value, label]) => (
               <option key={value} value={value}>
@@ -332,7 +332,7 @@ export default function ReposPage() {
                     href={r.githubUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded px-1 py-1 text-xs text-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-accent"
+                    className="text-link py-1 focus-visible:outline-2 focus-visible:outline-accent"
                   >
                     Open on GitHub ↗
                   </a>
