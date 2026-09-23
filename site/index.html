@@ -4,23 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dockmaster: know what's running on your Mac</title>
-<meta name="description" content="A local dashboard for stray dev servers, repos, worktrees, secrets, disk, and system health, on your Mac and your remote machines over SSH. Loopback only. Open source.">
+<meta property="og:title" content="Dockmaster: know what's running on your Mac">
+<meta property="og:description" content="Stray dev servers, dirty repos, committed secrets, and what your coding agents left running. One local console, loopback only.">
+<meta property="og:image" content="https://trydockmaster.vercel.app/media/film.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="A local console for stray dev servers, repos, worktrees, secrets, disk, and the servers your coding agents left running, on your Mac and your remote Macs over SSH. Loopback only. Open source.">
 <link rel="icon" href="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Azeret+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #070b14;
-    --surface: #0b111c;
-    --line: #1c2a3e;
-    --line-bright: #304965;
-    --ink: #f2f6fc;
-    --muted: #8593a8;
-    --quiet: #526178;
-    --accent: #68a9ff;
-    --ok: #6fe3a5;
-    --alarm: #ff6b6b;
+    --bg: #02070b;
+    --surface: #061018;
+    --line: #123040;
+    --line-bright: #1f5a70;
+    --ink: #d9f6ff;
+    --muted: #7fa9b8;
+    --quiet: #5d8496;
+    --accent: #4fd8ff;
+    --amber: #e8a94a;
+    --ok: #5dffc4;
+    --alarm: #ff5f52;
     --sans: "Instrument Sans", sans-serif;
     --mono: "Azeret Mono", monospace;
   }
@@ -29,14 +34,14 @@
   body {
     margin: 0; color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.55;
     background:
-      radial-gradient(60rem 30rem at 85% -10%, rgba(104,169,255,.14), transparent 60%),
-      radial-gradient(40rem 26rem at -10% 40%, rgba(104,169,255,.06), transparent 60%),
+      radial-gradient(60rem 30rem at 85% -10%, rgba(79,216,255,.14), transparent 60%),
+      radial-gradient(40rem 26rem at -10% 40%, rgba(232,169,74,.05), transparent 60%),
       var(--bg);
     -webkit-font-smoothing: antialiased;
   }
   body::before {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    background-image: radial-gradient(rgba(133,147,168,.18) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(79,216,255,.14) 1px, transparent 1px);
     background-size: 28px 28px;
     mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 70vh);
   }
@@ -63,22 +68,22 @@
     background: var(--surface); color: var(--ink); transition: transform .15s, border-color .15s, background .15s;
   }
   .btn:hover { transform: translateY(-1px); border-color: var(--accent); }
-  .btn.primary { background: var(--accent); color: #05101f; border-color: var(--accent); }
-  .btn.primary:hover { background: #8dbcff; }
+  .btn.primary { background: var(--accent); color: #02070b; border-color: var(--accent); }
+  .btn.primary:hover { background: #8fe6ff; }
   .hint { font-family: var(--mono); font-size: 11px; color: var(--quiet); margin-top: 14px; letter-spacing: .04em; }
   .hint code { color: var(--muted); }
 
   .shot { position: relative; perspective: 1600px; }
-  .shot img {
+  .shot img, .shot video {
     width: 100%; display: block; border-radius: 14px; border: 1px solid var(--line-bright);
-    box-shadow: 0 40px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(104,169,255,.08), 0 0 120px -30px rgba(104,169,255,.35);
+    box-shadow: 0 40px 80px -30px rgba(0,0,0,.8), 0 0 0 1px rgba(79,216,255,.08), 0 0 120px -30px rgba(79,216,255,.35);
     transform: rotateY(-9deg) rotateX(3deg); transform-origin: left center;
     animation: settle 1.2s cubic-bezier(.2,.7,.2,1) both;
   }
   @keyframes settle { from { opacity: 0; transform: rotateY(-16deg) rotateX(6deg) translateX(40px); } }
   .shot::after {
     content: ""; position: absolute; inset: auto 10% -30px 10%; height: 60px; filter: blur(30px);
-    background: rgba(104,169,255,.25); z-index: -1;
+    background: rgba(79,216,255,.25); z-index: -1;
   }
   .rise { animation: rise .8s cubic-bezier(.2,.7,.2,1) both; }
   .rise:nth-child(2) { animation-delay: .08s } .rise:nth-child(3) { animation-delay: .16s } .rise:nth-child(4) { animation-delay: .24s } .rise:nth-child(5) { animation-delay: .32s }
@@ -100,10 +105,14 @@
   .feature:nth-child(odd) .text { order: 2; }
   .feature h3 { font-size: 26px; letter-spacing: -.02em; margin: 10px 0 10px; font-weight: 600; }
   .feature p { color: var(--muted); margin: 0; }
-  .feature img { width: 100%; display: block; border-radius: 12px; border: 1px solid var(--line-bright); box-shadow: 0 30px 60px -30px rgba(0,0,0,.8); }
+  .feature img, .feature video { width: 100%; display: block; border-radius: 12px; border: 1px solid var(--line-bright); box-shadow: 0 30px 60px -30px rgba(0,0,0,.8); }
   .feature .n { font-family: var(--mono); font-size: 11px; color: var(--quiet); letter-spacing: .14em; }
 
-  .sec { border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(180deg, rgba(104,169,255,.05), transparent 40%), var(--surface); padding: 40px; }
+  .film { margin: 0 0 40px; }
+  .film video { width: 100%; display: block; border-radius: 14px; border: 1px solid var(--line-bright); background: #000; box-shadow: 0 40px 80px -30px rgba(0,0,0,.8), 0 0 120px -40px rgba(79,216,255,.35); }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--amber); border: 1px solid rgba(232,169,74,.45); border-radius: 4px; padding: 3px 7px; margin-left: 10px; vertical-align: 2px; }
+
+  .sec { border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(180deg, rgba(79,216,255,.05), transparent 40%), var(--surface); padding: 40px; }
   .sec ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
   .sec li { display: grid; grid-template-columns: 56px 1fr; gap: 12px; padding: 20px 0; border-bottom: 1px solid var(--line); }
   .sec li:nth-last-child(-n+2) { border-bottom: 0; }
@@ -111,17 +120,17 @@
   .sec li b { display: block; font-weight: 600; margin-bottom: 4px; }
   .sec li span { color: var(--muted); font-size: 15px; }
 
-  .mock { border: 1px solid var(--line-bright); border-radius: 12px; background: #060a12; font-family: var(--mono); font-size: 13px; padding: 8px 0; box-shadow: 0 30px 60px -30px rgba(0,0,0,.8); }
+  .mock { border: 1px solid var(--line-bright); border-radius: 12px; background: #030a10; font-family: var(--mono); font-size: 13px; padding: 8px 0; box-shadow: 0 30px 60px -30px rgba(0,0,0,.8); }
   .mock > div { display: flex; align-items: baseline; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
   .mock > div:last-child { border-bottom: 0; }
   .mock i { color: var(--quiet); font-style: normal; }
   .mock b { color: var(--ink); font-weight: 500; }
   .mock span { color: var(--quiet); font-size: 11px; margin-left: auto; }
-  .mock .on { background: rgba(104,169,255,.08); border-left: 2px solid var(--accent); padding-left: 18px; }
+  .mock .on { background: rgba(79,216,255,.08); border-left: 2px solid var(--accent); padding-left: 18px; }
   .mock .on span { color: var(--accent); }
   .mock .dim { font-size: 11px; }
 
-  .prompt { margin-top: 20px; border: 1px solid var(--line-bright); border-radius: 12px; background: #060a12; padding: 22px 24px; position: relative; }
+  .prompt { margin-top: 20px; border: 1px solid var(--line-bright); border-radius: 12px; background: #030a10; padding: 22px 24px; position: relative; }
   .prompt pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: var(--muted); white-space: pre-wrap; }
   .prompt pre b { color: var(--ink); font-weight: 500; }
   .prompt .btn { position: absolute; top: 14px; right: 14px; padding: 9px 12px; font-size: 10px; }
@@ -133,7 +142,7 @@
   @media (max-width: 860px) {
     .hero, .feature, .feature:nth-child(odd) { grid-template-columns: 1fr; }
     .feature .text { order: 0 !important; }
-    .shot img { transform: none; }
+    .shot img, .shot video { transform: none; }
     .vitals { grid-template-columns: 1fr 1fr; } .vitals div:nth-child(2) { border-right: 0; } .vitals div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
     .sec ol { grid-template-columns: 1fr; } .sec li:nth-last-child(2) { border-bottom: 1px solid var(--line); }
     nav { display: none; }
@@ -144,14 +153,14 @@
 <div class="wrap">
   <header>
     <a class="brand" href="#"><img src="icon.png" alt=""><div><span>Local console</span><b>Dockmaster</b></div></a>
-    <nav><a href="#modules">Modules</a><a href="#remote">Remote</a><a href="#security">Security</a><a href="#setup">Setup</a></nav>
+    <nav><a href="#agents">Agents</a><a href="#modules">Modules</a><a href="#remote">Remote</a><a href="#security">Security</a><a href="#setup">Setup</a></nav>
   </header>
 
   <section class="hero">
     <div>
-      <div class="eyebrow rise">Local berth monitor for macOS</div>
+      <div class="eyebrow rise">Local console for macOS</div>
       <h1 class="rise">Know what's running on <em>your</em> Mac.</h1>
-      <p class="lede rise">Stray dev servers, dirty repos, committed secrets, and forty gigs of node_modules. One dashboard on your loopback, for this Mac and any other Mac over SSH.</p>
+      <p class="lede rise">Stray dev servers, dirty repos, committed secrets, forty gigs of node_modules, and whatever your coding agents left running. One console on your loopback, for this Mac and any other Mac over SSH.</p>
       <div class="cta rise">
         <button class="btn primary" data-copy>Copy setup prompt</button>
         <a class="btn" href="https://github.com/naman0r/dockmaster/stargazers">&uarr; Star on GitHub</a>
@@ -159,7 +168,7 @@
       </div>
       <p class="hint rise">Paste the prompt into your coding agent, or <code>git clone</code> and <code>npm start</code>. MIT licensed.</p>
     </div>
-    <div class="shot"><img src="shots/harbor.webp" alt="Dockmaster Harbor overview with live module cards and system vitals"></div>
+    <div class="shot"><video class="loop" muted loop playsinline preload="metadata" poster="shots/harbor.webp" aria-label="Harbor overview powering on, then the command palette jumping to port 3000"><source src="media/harbor.mp4" type="video/mp4"><img src="media/harbor.gif" alt="Harbor overview powering on, then the command palette jumping to port 3000"></video></div>
   </section>
 
   <div class="vitals">
@@ -169,6 +178,29 @@
     <div><small>Idle footprint</small><b>~0 CPU</b></div>
   </div>
 
+  <section id="agents">
+    <div class="eyebrow">Agent Watch</div>
+    <h2>See what your coding agents left running.</h2>
+    <p class="sub">An agent finishes the task and exits. The dev server it started keeps the port, and the worktree it made keeps the disk. Agent Watch lists both, with the session that caused them.</p>
+
+    <div class="film">
+      <video controls playsinline preload="none" poster="media/film.jpg" aria-label="25 second Dockmaster film"><source src="media/film.mp4" type="video/mp4"></video>
+    </div>
+
+    <div class="feature">
+      <video class="loop" muted loop playsinline preload="none" poster="shots/cleanup.webp" aria-label="Agent Watch flags three servers and one worktree, then Clean up all clears them"><source src="media/cleanup.mp4" type="video/mp4"><img src="media/cleanup.gif" alt="Agent Watch flags three servers and one worktree, then Clean up all clears them"></video>
+      <div class="text"><div class="n">A / LEFT BEHIND</div><h3>Find what finished agents left behind.</h3><p>A server is flagged when it has no terminal, started during an agent session, has no agent in its folder now, and the folder has been quiet for ten minutes. A worktree is flagged when its branch is merged, its tree is clean, and nobody has touched it for a day. The cleanup page shows the reason for each flag and the exact command it will run. Clean up re-scans first, refuses while an agent is still in the folder, sends SIGTERM, and runs git worktree remove without --force.</p></div>
+    </div>
+    <div class="feature">
+      <div class="text"><div class="n">B / SESSIONS</div><h3>Every agent on this Mac, in one list.</h3><p>Agent Watch detects Claude Code, Codex, Gemini CLI, OpenCode, Cursor Agent, Kiro CLI, Aider, Amp, Copilot CLI, and Goose while they run, with the repo each one is in. It reads the last seven days of Claude Code, Codex, and OpenCode history for prompts, tool calls, tokens, and recorded cost. Each folder's newest session lists the servers running there and marks them as the agent's, left behind, or unclaimed. It reads local files only.</p></div>
+      <img loading="lazy" src="shots/agentwatch.webp" alt="Agent Watch listing a running Claude Code session and the last seven days of sessions">
+    </div>
+    <div class="feature">
+      <video class="loop" muted loop playsinline preload="none" poster="shots/receipt.webp" aria-label="Weekly receipt with project names switched on, scrolling to the total"><source src="media/receipt.mp4" type="video/mp4"><img src="media/receipt.gif" alt="Weekly receipt with project names switched on, scrolling to the total"></video>
+      <div class="text"><div class="n">C / RECEIPT</div><h3>The week as a receipt.</h3><p>Sessions per agent, prompts, tool calls, tokens, lines changed, top projects, and recorded cost for the last seven days. Below that, the servers Dockmaster stopped, the worktrees it removed, and the disk it reclaimed. Copy it as an image or download a PNG. Project names stay hidden until you switch them on.</p></div>
+    </div>
+  </section>
+
   <section id="modules">
     <div class="eyebrow">Modules</div>
     <h2>Every berth in the harbor.</h2>
@@ -176,7 +208,7 @@
 
     <div class="feature">
       <div class="text"><div class="n">01 / PORTS</div><h3>Find the server you forgot about.</h3><p>Every listening TCP port with its project, process tree, and whether it is exposed to the LAN. Stop sends SIGTERM to the whole tree. Force kill is a separate, confirmed step.</p></div>
-      <img loading="lazy" src="shots/ports.webp" alt="Ports page listing dev servers with stop buttons">
+      <video class="loop" muted loop playsinline preload="none" poster="shots/ports.webp" aria-label="Ports page: Stop on port 3000, a toast confirms, and the row leaves the list"><source src="media/ports.mp4" type="video/mp4"><img src="media/ports.gif" alt="Ports page: Stop on port 3000, a toast confirms, and the row leaves the list"></video>
     </div>
     <div class="feature">
       <img loading="lazy" src="shots/repos.webp" alt="Repository status board">
@@ -196,7 +228,11 @@
     </div>
     <div class="feature">
       <img loading="lazy" src="shots/health.webp" alt="Health page with status and latency per check">
-      <div class="text"><div class="n">06 / HEALTH</div><h3>Is it up?</h3><p>A personal status page for localhost services and the external URLs you care about, with status code and latency. Also Docker containers with a guarded stop, Hosts profiles, live process load, and a ⌘K palette that searches everything.</p></div>
+      <div class="text"><div class="n">06 / HEALTH</div><h3>Is it up?</h3><p>A personal status page for localhost services and the external URLs you care about, with status code and latency. It can send a browser notification when a check changes state while the page is open.</p></div>
+    </div>
+    <div class="feature">
+      <div class="text"><div class="n">07 / PROCESSES AND THE REST</div><h3>The CPU hog, the container, the launchd job.</h3><p>Processes samples CPU over one second and guards Stop the same way Ports does. Containers lists what Docker Desktop or OrbStack is running and stops one after re-checking its id. LaunchAgents loads and unloads the plists in your own gui domain. Hosts applies /etc/hosts profiles through the macOS admin prompt. Press ⌘K anywhere to search ports, repos, branches, paths, and notes.</p></div>
+      <img loading="lazy" src="shots/processes.webp" alt="Processes page with per-row CPU and memory bars">
     </div>
     <div class="feature">
       <div class="mock" role="img" aria-label="Machine selector showing Mac and remote Homelab over SSH">
@@ -204,7 +240,7 @@
         <div class="on"><i>&gt;</i><b>Homelab</b><span>ssh over tailscale</span></div>
         <div><i>&nbsp;</i><span class="dim">same dashboard, same guarded actions, zero remote listener</span></div>
       </div>
-      <div id="remote" class="text"><div class="n">07 / REMOTE MACHINES</div><h3>Any Mac you can SSH to.</h3><p>Pick another machine in the header and every module runs there: ports with managed SSH forwarding, repo status, disk, health, secrets, all of it. A small companion process starts over your existing SSH session and exits when you leave. No cloud backend, no open port, no reverse tunnel. You only need SSH access between the machines; Tailscale is one way to get it.</p></div>
+      <div id="remote" class="text"><div class="n">08 / REMOTE MACHINES</div><h3>Any Mac you can SSH to.</h3><p>Pick another machine in the header and every module runs there: ports with managed SSH forwarding, repo status, disk, health, secrets, all of it. A small companion process starts over your existing SSH session and exits when you leave. No cloud backend, no open port, no reverse tunnel. You only need SSH access between the machines; Tailscale is one way to get it.</p></div>
     </div>
   </section>
 
@@ -255,6 +291,13 @@ docs/remote-machines.md using my existing SSH access.</pre>
   </footer>
 </div>
 <script>
+  // Loops play only while on screen, and not at all for readers who asked for less motion.
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const seen = new IntersectionObserver((entries) => {
+    for (const e of entries) e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause();
+  }, { threshold: 0.35 });
+  for (const v of document.querySelectorAll("video.loop")) still ? (v.controls = true) : seen.observe(v);
+
   const text = document.getElementById("prompt").innerText;
   for (const b of document.querySelectorAll("[data-copy]")) {
     b.addEventListener("click", async () => {
